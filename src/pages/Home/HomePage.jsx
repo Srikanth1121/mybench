@@ -12,10 +12,7 @@ import {
 } from "firebase/auth";
 import { log, error } from "../../utils/logger";
 import { sendPasswordResetEmail } from "firebase/auth";
-
-
-
-
+import { sendEmailVerification } from "firebase/auth";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("login");
@@ -45,19 +42,29 @@ export default function HomePage() {
 
 
     // --- Login Existing User ---
-  async function handleLogin(e) {
+ async function handleLogin(e) {
   e.preventDefault();
   const email = e.target[0].value;
   const password = e.target[1].value;
 
   try {
-    // Set browser persistence (keeps user logged in even after reload)
+    // Keep user logged in on browser reload
     await setPersistence(auth, browserLocalPersistence);
-    await signInWithEmailAndPassword(auth, email, password);
-    alert("✅ Logged in successfully");
-  } catch (error) {
-    error("❌ Login Error:", error.message);
-    alert(error.message);
+
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Check email verification
+    if (!user.emailVerified) {
+      alert("⚠️ Your email is not verified. Please check your inbox for the verification link.");
+      await signOut(auth); // force logout
+      return;
+    }
+
+    alert("✅ Logged in successfully!");
+  } catch (err) {
+    console.error("❌ Login Error:", err.message);
+    alert(err.message);
   }
 }
 

@@ -124,35 +124,27 @@ const navigate = useNavigate();
   }, []);
  useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (user) => {
-    log("🔁 Auth state changed:", user);
     if (user) {
-      setCurrentUser(user);
-      
-    log("✅ Logged-in user:", user.email);
+      if (user.emailVerified) {
+        setCurrentUser(user);
+        log("✅ Verified user logged in:", user.email);
+      } else {
+        log("⚠️ Unverified user detected, signing out...");
+        signOut(auth);
+        setCurrentUser(null);
+      }
     } else {
       setCurrentUser(null);
       log("🚪 No user logged in");
-
     }
   });
   return () => unsubscribe();
 }, []);
 
 
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
-
-            {currentUser && (
-        <div className="absolute top-4 right-4 bg-white shadow-md px-4 py-2 rounded-lg text-sm z-50">
-          <span className="text-gray-700 mr-3">Welcome, {currentUser.email}</span>
-          <button
-            onClick={() => signOut(auth)}
-            className="text-blue-600 hover:underline"
-          >
-            Logout
-          </button>
-        </div>
-      )}
 
       <div className="w-full flex flex-col lg:flex-row items-center justify-between px-8 lg:px-16 py-10 mx-auto">
 

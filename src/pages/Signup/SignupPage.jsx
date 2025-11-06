@@ -55,11 +55,16 @@ export default function SignupPage() {
           where("role", "==", role),
           where("email", "==", email.trim().toLowerCase())
         );
-        const qMobile = query(
-          usersRef,
-          where("role", "==", role),
-          where("mobile", "==", mobile.trim())
-        );
+        // Normalize mobile for comparison (digits only)
+const normalizedMobile = mobile.trim().replace(/\D/g, "");
+
+// Build query using normalized mobile
+const qMobile = query(
+  usersRef,
+  where("role", "==", role),
+  where("mobile", "==", normalizedMobile)
+);
+
 
         const [emailSnap, mobileSnap] = await Promise.all([
           getDocs(qEmail),
@@ -87,10 +92,30 @@ export default function SignupPage() {
 
     // Validate all fields
     if (!name || !mobile || !email || !password) {
+        
       setMessage("⚠️ Please fill all required fields.");
       setLoading(false);
       return;
     }
+    // --- Validate mobile number by country ---
+const mobileDigits = mobile.trim().replace(/\D/g, ""); // keep only numbers
+
+if (country === "India") {
+  // India: 10 digits, starts with 6–9
+  if (!/^[6-9]\d{9}$/.test(mobileDigits)) {
+    setMessage("⚠️ Please enter a valid 10-digit Indian mobile number (starting with 6–9).");
+    setLoading(false);
+    return;
+  }
+} else if (country === "USA") {
+  // USA: 10 digits (any)
+  if (!/^\d{10}$/.test(mobileDigits)) {
+    setMessage("⚠️ Please enter a valid 10-digit US mobile number.");
+    setLoading(false);
+    return;
+  }
+}
+
 
     // Validate LinkedIn/Website format if provided
     if (
@@ -152,7 +177,8 @@ export default function SignupPage() {
         await setDoc(doc(db, "users", user.uid), {
           name,
           email: normalizedEmail,
-          mobile: mobile.trim(),
+          mobile: mobile.trim().replace(/\D/g, ""), // store only digits
+
           linkedin,
           role,
           country,

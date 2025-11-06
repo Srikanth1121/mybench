@@ -1,8 +1,14 @@
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import HomePage from "./pages/Home/HomePage";
+
 function App() {
   return (
-    <div className="text-3xl font-bold text-center text-blue-600 mt-10">
-      MyBench is ready 🚀
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

@@ -13,6 +13,8 @@ import {
 import { log, error } from "../../utils/logger";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { sendEmailVerification } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("login");
@@ -21,24 +23,12 @@ export default function HomePage() {
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [message, setMessage] = useState("");
+const navigate = useNavigate();
 
 
 
     // --- Register New User ---
-  async function handleRegister(e) {
-    e.preventDefault();
-    const name = e.target[0].value;
-    const email = e.target[1].value;
-    const password = e.target[2].value;
-
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      alert(`✅ Account created for ${name}`);
-    } catch (error) {
-      error("❌ Registration Error:", error.message);
-      alert(error.message);
-    }
-  }
+  
 
 
     // --- Login Existing User ---
@@ -169,7 +159,7 @@ export default function HomePage() {
 
         {/* Left Section */}
         <div className="text-center lg:text-left lg:w-1/2">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-800">
             MyBench
           </h1>
           <p className="mt-4 text-gray-600 text-sm sm:text-base max-w-md mx-auto lg:mx-0">
@@ -220,29 +210,7 @@ export default function HomePage() {
         {/* Right Section - Auth Card */}
         <div className="mt-10 lg:mt-0 lg:w-1/2 flex justify-center">
           <div className="bg-white shadow-lg rounded-2xl w-full max-w-md p-8">
-            {/* Tabs */}
-            <div className="flex mb-6 border-b border-gray-200">
-              <button
-                onClick={() => setActiveTab("login")}
-                className={`flex-1 pb-2 text-center font-semibold ${
-                  activeTab === "login"
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-500"
-                }`}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => setActiveTab("register")}
-                className={`flex-1 pb-2 text-center font-semibold ${
-                  activeTab === "register"
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-500"
-                }`}
-              >
-                Register
-              </button>
-            </div>
+            
 
             {/* Auth Forms */}
             {activeTab === "login" ? (
@@ -271,12 +239,16 @@ export default function HomePage() {
                 >
                   Login
                 </button>
+                <button
+  type="button"
+  onClick={() => navigate("/signup")}
+  className="w-full border border-blue-600 text-blue-600 py-3 rounded-lg hover:bg-blue-50 transition mt-3"
+>
+  Create Account
+</button>
+
               </form>
-                        ) : (
-              <form onSubmit={handleRegister} className="space-y-4">
-                …
-              </form>
-            )}
+                       ) : null}
 
             {/* Forgot Password Reset Form */}
             {showReset && (

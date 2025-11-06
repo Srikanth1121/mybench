@@ -52,10 +52,34 @@ const navigate = useNavigate();
     }
 
     alert("✅ Logged in successfully!");
-  } catch (err) {
-    console.error("❌ Login Error:", err.message);
-    alert(err.message);
+ } catch (err) {
+  error("❌ Login Error:", err.code, err.message);
+
+  let friendlyMessage = "❌ Unable to log in. Please try again.";
+
+  switch (err.code) {
+    case "auth/invalid-email":
+      friendlyMessage = "⚠️ Please enter a valid email address.";
+      break;
+    case "auth/user-not-found":
+      friendlyMessage = "⚠️ No account found with this email.";
+      break;
+    case "auth/wrong-password":
+      friendlyMessage = "⚠️ Incorrect password. Please try again.";
+      break;
+    case "auth/invalid-credential":
+      friendlyMessage = "⚠️ Invalid credentials. Check your email and password.";
+      break;
+    case "auth/too-many-requests":
+      friendlyMessage = "⚠️ Too many failed attempts. Try again later.";
+      break;
+    default:
+      friendlyMessage = "❌ Login failed. Please try again later.";
   }
+
+  alert(friendlyMessage);
+}
+
 }
 
 

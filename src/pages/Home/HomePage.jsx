@@ -1,9 +1,60 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../../firebase/config";
+import { db, auth, googleProvider } from "../../firebase/config";
 import { collection, getDocs } from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup
+} from "firebase/auth";
+
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("login");
+
+    // --- Register New User ---
+  async function handleRegister(e) {
+    e.preventDefault();
+    const name = e.target[0].value;
+    const email = e.target[1].value;
+    const password = e.target[2].value;
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      alert(`✅ Account created for ${name}`);
+    } catch (error) {
+      console.error("❌ Registration Error:", error.message);
+      alert(error.message);
+    }
+  }
+
+
+    // --- Login Existing User ---
+  async function handleLogin(e) {
+    e.preventDefault();
+    const email = e.target[0].value;
+    const password = e.target[1].value;
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      alert("✅ Logged in successfully");
+    } catch (error) {
+      console.error("❌ Login Error:", error.message);
+      alert(error.message);
+    }
+  }
+
+
+    // --- Google Sign-In ---
+  async function handleGoogleLogin() {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      alert("✅ Logged in with Google");
+    } catch (error) {
+      console.error("❌ Google Sign-In Error:", error.message);
+      alert(error.message);
+    }
+  }
+
 
   useEffect(() => {
     async function testFirestore() {
@@ -102,7 +153,8 @@ export default function HomePage() {
 
             {/* Auth Forms */}
             {activeTab === "login" ? (
-              <form className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
+
                 <input
                   type="email"
                   placeholder="Email"
@@ -121,7 +173,8 @@ export default function HomePage() {
                 </button>
               </form>
             ) : (
-              <form className="space-y-4">
+              <form onSubmit={handleRegister} className="space-y-4">
+
                 <input
                   type="text"
                   placeholder="Full Name"
@@ -156,7 +209,8 @@ export default function HomePage() {
             </div>
 
             {/* Google Button */}
-            <button className="w-full flex items-center justify-center border border-gray-300 py-2 rounded-lg hover:bg-gray-50 transition">
+            <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center border border-gray-300 py-2 rounded-lg hover:bg-gray-50 transition">
+
               <img
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="Google"

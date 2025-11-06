@@ -240,16 +240,26 @@ if (country === "India") {
             required
           />
 
-          <input
-            type="tel"
-            placeholder="Mobile Number"
-            value={mobile}
-            onChange={(e) => setMobile(e.target.value)}
-            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-              mobileExists ? "border-red-500" : ""
-            }`}
-            required
-          />
+          <div className="flex items-center border rounded-lg focus-within:ring-2 focus-within:ring-blue-500">
+  <span className="px-3 min-w-[50px] text-gray-500 text-sm font-medium select-none">
+
+    {country === "India" ? "+91" : "+1"}
+  </span>
+  <input
+    type="tel"
+    placeholder="Mobile Number"
+    value={mobile}
+    onChange={(e) => setMobile(e.target.value)}
+    className="flex-1 p-3 outline-none rounded-r-lg"
+    required
+  />
+</div>
+{mobileExists && (
+  <p className="text-red-500 text-sm">
+    ⚠️ This number is already used for this role.
+  </p>
+)}
+
           {mobileExists && (
             <p className="text-red-500 text-sm">
               ⚠️ This number is already used for this role.

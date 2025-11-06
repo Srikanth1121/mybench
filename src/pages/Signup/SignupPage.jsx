@@ -33,6 +33,29 @@ export default function SignupPage() {
   const [mobileExists, setMobileExists] = useState(false);
 
   const navigate = useNavigate();
+  // --- Helper: Auto-format mobile number as user types ---
+const formatMobile = (value, country) => {
+  // Keep only digits
+  const digits = value.replace(/\D/g, "");
+
+  if (country === "India") {
+    // Format as 98765 43210
+    return digits.replace(/(\d{5})(\d{0,5})/, "$1 $2").trim();
+  } else {
+    // Format as (415) 555-2671
+    return digits
+      .replace(/(\d{0,3})(\d{0,3})(\d{0,4})/, (match, p1, p2, p3) => {
+        let formatted = "";
+        if (p1) formatted += `(${p1}`;
+        if (p1 && p1.length === 3) formatted += ")";
+        if (p2) formatted += ` ${p2}`;
+        if (p3) formatted += `-${p3}`;
+        return formatted.trim();
+      })
+      .trim();
+  }
+};
+
 
   // ----- Password Strength Checker -----
   useEffect(() => {
@@ -249,7 +272,8 @@ if (country === "India") {
     type="tel"
     placeholder="Mobile Number"
     value={mobile}
-    onChange={(e) => setMobile(e.target.value)}
+    onChange={(e) => setMobile(formatMobile(e.target.value, country))}
+
     className="flex-1 p-3 outline-none rounded-r-lg"
     required
   />

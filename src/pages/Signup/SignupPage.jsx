@@ -3,6 +3,7 @@ import { auth, db } from "../../firebase/config";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import {
   doc,
@@ -42,30 +43,35 @@ export default function SignupPage() {
     else setPasswordStrength("weak");
   }, [password]);
 
-  // ----- Real-time Email & Mobile Uniqueness Check -----
+  // ----- Real-time Email & Mobile Uniqueness Check (Firestore users collection) -----
   useEffect(() => {
     const checkDuplicates = async () => {
       if (!email && !mobile) return;
 
-      const usersRef = collection(db, "users");
-      const qEmail = query(
-        usersRef,
-        where("role", "==", role),
-        where("email", "==", email.trim().toLowerCase())
-      );
-      const qMobile = query(
-        usersRef,
-        where("role", "==", role),
-        where("mobile", "==", mobile.trim())
-      );
+      try {
+        const usersRef = collection(db, "users");
+        const qEmail = query(
+          usersRef,
+          where("role", "==", role),
+          where("email", "==", email.trim().toLowerCase())
+        );
+        const qMobile = query(
+          usersRef,
+          where("role", "==", role),
+          where("mobile", "==", mobile.trim())
+        );
 
-      const [emailSnap, mobileSnap] = await Promise.all([
-        getDocs(qEmail),
-        getDocs(qMobile),
-      ]);
+        const [emailSnap, mobileSnap] = await Promise.all([
+          getDocs(qEmail),
+          getDocs(qMobile),
+        ]);
 
-      setEmailExists(!emailSnap.empty);
-      setMobileExists(!mobileSnap.empty);
+        setEmailExists(!emailSnap.empty);
+        setMobileExists(!mobileSnap.empty);
+      } catch (err) {
+        console.error("Duplicate check error:", err.message);
+        // keep UX silent; don't block signup for transient errors
+      }
     };
 
     // Debounce for better UX
@@ -81,8 +87,17 @@ export default function SignupPage() {
 
     // Validate all fields
     if (!name || !mobile || !email || !password) {
-
       setMessage("⚠️ Please fill all required fields.");
+      setLoading(false);
+      return;
+    }
+
+    // Validate LinkedIn/Website format if provided
+    if (
+      linkedin &&
+      !/^https?:\/\/[\w.-]+\.[a-z]{2,}.*$/i.test(linkedin.trim())
+    ) {
+      setMessage("⚠️ Please enter a valid URL starting with http:// or https://");
       setLoading(false);
       return;
     }
@@ -111,6 +126,16 @@ export default function SignupPage() {
       // Normalize email
       const normalizedEmail = email.trim().toLowerCase();
 
+      // Friendly check: is this email already present in Firebase Auth (globally)?
+      const methods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
+      if (methods && methods.length > 0) {
+        setMessage(
+          "⚠️ This email is already registered. One email can only be used for a single account."
+        );
+        setLoading(false);
+        return;
+      }
+
       // Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -123,24 +148,44 @@ export default function SignupPage() {
       await sendEmailVerification(user);
 
       // Save user to Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        name,
-        email: normalizedEmail,
-        mobile: mobile.trim(),
-        linkedin,
-        role,
-        country,
-        credits: 50,
-        createdAt: serverTimestamp(),
-      });
+      try {
+        await setDoc(doc(db, "users", user.uid), {
+          name,
+          email: normalizedEmail,
+          mobile: mobile.trim(),
+          linkedin,
+          role,
+          country,
+          credits: 50,
+          createdAt: serverTimestamp(),
+        });
+      } catch (fireErr) {
+        console.error("Firestore write error:", fireErr.message);
+        // We won't delete the auth user automatically here, but you could consider cleanup
+        setMessage(
+          "❌ Account created in Auth but failed to save profile in Firestore. Check console for details."
+        );
+        setLoading(false);
+        return;
+      }
 
       setMessage("✅ Account created! Please verify your email before login.");
       setLoading(false);
 
-      setTimeout(() => navigate("/"), 3000);
+      // Keep user on-screen so they can read the message. Provide button to go to login.
+      // If you prefer auto-redirect, uncomment the next line:
+      // setTimeout(() => navigate('/'), 3000);
     } catch (err) {
-      console.error("Signup Error:", err.message);
-      setMessage("❌ " + err.message);
+      console.error("Signup Error:", err);
+      // Firebase error messages can be technical; show friendly alternatives where possible
+      const friendly =
+        err.code === "auth/weak-password"
+          ? "❌ Weak password. Use 8+ chars with a number and symbol."
+          : err.code === "auth/email-already-in-use"
+          ? "❌ This email is already in use."
+          : err.message;
+
+      setMessage("❌ " + friendly);
       setLoading(false);
     }
   };
@@ -212,9 +257,7 @@ export default function SignupPage() {
           {password && (
             <p
               className={`text-sm ${
-                passwordStrength === "strong"
-                  ? "text-green-600"
-                  : "text-red-500"
+                passwordStrength === "strong" ? "text-green-600" : "text-red-500"
               }`}
             >
               {passwordStrength === "strong"
@@ -239,7 +282,6 @@ export default function SignupPage() {
             value={linkedin}
             onChange={(e) => setLinkedin(e.target.value)}
             className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            required
           />
 
           <select
@@ -253,7 +295,7 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || emailExists || mobileExists}
             className={`w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition ${
               loading ? "opacity-50 cursor-not-allowed" : ""
             }`}

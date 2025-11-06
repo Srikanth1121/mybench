@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from "react";
+import { browserLocalPersistence, setPersistence } from "firebase/auth";
+
 import { db, auth, googleProvider } from "../../firebase/config";
 import { collection, getDocs } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut
 } from "firebase/auth";
+import { log, error } from "../../utils/logger";
+
 
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("login");
+    const [currentUser, setCurrentUser] = useState(null);
+
 
     // --- Register New User ---
   async function handleRegister(e) {
@@ -22,7 +30,7 @@ export default function HomePage() {
       await createUserWithEmailAndPassword(auth, email, password);
       alert(`✅ Account created for ${name}`);
     } catch (error) {
-      console.error("❌ Registration Error:", error.message);
+      error("❌ Registration Error:", error.message);
       alert(error.message);
     }
   }
@@ -30,49 +38,82 @@ export default function HomePage() {
 
     // --- Login Existing User ---
   async function handleLogin(e) {
-    e.preventDefault();
-    const email = e.target[0].value;
-    const password = e.target[1].value;
+  e.preventDefault();
+  const email = e.target[0].value;
+  const password = e.target[1].value;
 
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      alert("✅ Logged in successfully");
-    } catch (error) {
-      console.error("❌ Login Error:", error.message);
-      alert(error.message);
-    }
+  try {
+    // Set browser persistence (keeps user logged in even after reload)
+    await setPersistence(auth, browserLocalPersistence);
+    await signInWithEmailAndPassword(auth, email, password);
+    alert("✅ Logged in successfully");
+  } catch (error) {
+    error("❌ Login Error:", error.message);
+    alert(error.message);
   }
+}
+
 
 
     // --- Google Sign-In ---
   async function handleGoogleLogin() {
-    try {
-      await signInWithPopup(auth, googleProvider);
-      alert("✅ Logged in with Google");
-    } catch (error) {
-      console.error("❌ Google Sign-In Error:", error.message);
-      alert(error.message);
-    }
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+    await signInWithPopup(auth, googleProvider);
+    alert("✅ Logged in with Google");
+  } catch (error) {
+    error("❌ Google Sign-In Error:", error.message);
+    alert(error.message);
   }
+}
+
 
 
   useEffect(() => {
     async function testFirestore() {
       try {
         const snapshot = await getDocs(collection(db, "test"));
-        console.log(
+        log(
           "✅ Firebase Connected:",
           snapshot.empty ? "No data yet" : "Data found"
         );
       } catch (error) {
-        console.error("❌ Firebase Error:", error);
+        error("❌ Firebase Error:", error);
       }
     }
     testFirestore();
   }, []);
+ useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    log("🔁 Auth state changed:", user);
+    if (user) {
+      setCurrentUser(user);
+      
+    log("✅ Logged-in user:", user.email);
+    } else {
+      setCurrentUser(null);
+      log("🚪 No user logged in");
+
+    }
+  });
+  return () => unsubscribe();
+}, []);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col justify-center items-center">
+            {currentUser && (
+        <div className="absolute top-4 right-4 bg-white shadow-md px-4 py-2 rounded-lg text-sm z-50">
+          <span className="text-gray-700 mr-3">Welcome, {currentUser.email}</span>
+          <button
+            onClick={() => signOut(auth)}
+            className="text-blue-600 hover:underline"
+          >
+            Logout
+          </button>
+        </div>
+      )}
+
       <div className="w-full max-w-7xl flex flex-col lg:flex-row items-center justify-between px-6 py-10">
         {/* Left Section */}
         <div className="text-center lg:text-left lg:w-1/2">

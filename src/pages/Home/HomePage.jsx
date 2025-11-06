@@ -11,12 +11,20 @@ import {
   signOut
 } from "firebase/auth";
 import { log, error } from "../../utils/logger";
+import { sendPasswordResetEmail } from "firebase/auth";
+
+
 
 
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("login");
     const [currentUser, setCurrentUser] = useState(null);
+      // Forgot Password states
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [message, setMessage] = useState("");
+
 
 
     // --- Register New User ---
@@ -66,6 +74,40 @@ export default function HomePage() {
     alert(error.message);
   }
 }
+  // --- Password Reset (Forgot Password) ---
+  const handlePasswordReset = async () => {
+    // basic validation
+    if (!resetEmail || resetEmail.trim() === "") {
+      setMessage("⚠️ Please enter your email address.");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, resetEmail.trim());
+      setMessage("✅ Password reset link sent. Please check your email.");
+    } catch (err) {
+      // Provide a user-friendly message for common cases
+      let friendly = err.message || "Failed to send reset email.";
+      if (err.code) {
+        switch (err.code) {
+          case "auth/user-not-found":
+            friendly = "No account found for that email.";
+            break;
+          case "auth/invalid-email":
+            friendly = "Please enter a valid email address.";
+            break;
+          case "auth/too-many-requests":
+            friendly = "Too many requests. Please try again later.";
+            break;
+          // add more cases if you want
+          default:
+            // keep original message for unexpected codes
+            friendly = err.message || friendly;
+        }
+      }
+      setMessage("❌ " + friendly);
+    }
+  };
 
 
 
@@ -101,7 +143,8 @@ export default function HomePage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col justify-center items-center">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
+
             {currentUser && (
         <div className="absolute top-4 right-4 bg-white shadow-md px-4 py-2 rounded-lg text-sm z-50">
           <span className="text-gray-700 mr-3">Welcome, {currentUser.email}</span>
@@ -114,7 +157,9 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="w-full max-w-7xl flex flex-col lg:flex-row items-center justify-between px-6 py-10">
+      <div className="w-full flex flex-col lg:flex-row items-center justify-between px-8 lg:px-16 py-10 mx-auto">
+
+
         {/* Left Section */}
         <div className="text-center lg:text-left lg:w-1/2">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900">
@@ -134,17 +179,17 @@ export default function HomePage() {
                 desc: "Post and manage contract opportunities.",
               },
               {
-                icon: "/Logos/bench.svg",
+                icon: "/Logos/BenchTalent.svg",
                 title: "Bench Talent",
                 desc: "Showcase available candidates.",
               },
               {
-                icon: "/Logos/search.svg",
+                icon: "/Logos/Search.svg",
                 title: "Advanced Search",
                 desc: "Filter by skills, location, and more.",
               },
               {
-                icon: "/Logos/message.svg",
+                icon: "/Logos/DirectMessage.svg",
                 title: "Direct Messaging",
                 desc: "Connect instantly with recruiters.",
               },
@@ -206,6 +251,13 @@ export default function HomePage() {
                   placeholder="Password"
                   className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                    <p
+      onClick={() => setShowReset(true)}
+      className="text-sm text-blue-600 cursor-pointer hover:underline text-right mt-1"
+    >
+      Forgot Password?
+    </p>
+
                 <button
                   type="submit"
                   className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
@@ -213,34 +265,53 @@ export default function HomePage() {
                   Login
                 </button>
               </form>
-            ) : (
+                        ) : (
               <form onSubmit={handleRegister} className="space-y-4">
-
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
-                >
-                  Register
-                </button>
+                …
               </form>
             )}
 
+            {/* Forgot Password Reset Form */}
+            {showReset && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-2xl shadow-xl w-80 relative">
+      <h2 className="text-lg font-semibold mb-3 text-center">Reset Password</h2>
+
+      <input
+        type="email"
+        value={resetEmail}
+        onChange={(e) => setResetEmail(e.target.value)}
+        placeholder="Enter your email"
+        className="w-full p-2 border rounded mb-3"
+      />
+
+      <button
+        onClick={handlePasswordReset}
+        type="button"
+        className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+      >
+        Send Reset Link
+      </button>
+
+      {message && (
+        <p className="text-sm text-gray-700 mt-2 text-center">{message}</p>
+      )}
+
+      <button
+        onClick={() => {
+          setShowReset(false);
+          setMessage("");
+        }}
+        className="absolute top-2 right-3 text-gray-400 hover:text-gray-600 text-lg font-bold"
+      >
+        ×
+      </button>
+    </div>
+  </div>
+)}
+
             {/* Divider */}
+
             <div className="flex items-center my-6">
               <hr className="flex-grow border-gray-300" />
               <span className="mx-2 text-gray-400 text-sm">

@@ -4,6 +4,8 @@ import HomePage from "./pages/Home/HomePage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminPage";
 import SuperAdminLogin from "./pages/SuperAdmin/SuperAdminLogin"; // 👈 Add this
+import SignupPage from "./pages/Signup/SignupPage";
+
 
 function App() {
   return (
@@ -11,6 +13,8 @@ function App() {
       <Routes>
         {/* HomePage (for Recruiter, Candidate, Company Admin login dropdown) */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/signup" element={<SignupPage />} />
+
 
         {/* Super Admin dedicated login */}
         <Route path="/superadmin-login" element={<SuperAdminLogin />} />

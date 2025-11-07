@@ -14,6 +14,8 @@ import { log, error } from "../../utils/logger";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { sendEmailVerification } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+
 
 
 export default function HomePage() {
@@ -51,7 +53,26 @@ const navigate = useNavigate();
       return;
     }
 
-    alert("✅ Logged in successfully!");
+    // ✅ Logged in successfully
+const userDoc = await getDoc(doc(db, "users", user.uid));
+
+if (userDoc.exists()) {
+  const role = userDoc.data().role;
+  console.log("User role:", role);
+
+  if (role === "superadmin") {
+    navigate("/superadmin");
+  } else if (role === "companyadmin") {
+    navigate("/company-admin/profile");
+  } else if (role === "recruiter") {
+    navigate("/recruiter/dashboard");
+  } else {
+    alert("⚠️ Unknown role, please contact support.");
+  }
+} else {
+  alert("⚠️ No user record found in Firestore!");
+}
+
  } catch (err) {
   error("❌ Login Error:", err.code, err.message);
 

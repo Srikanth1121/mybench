@@ -241,9 +241,10 @@ if (country === "India") {
 
   // ----- Dynamic LinkedIn Placeholder -----
   const linkedInPlaceholder =
-    role === "company-admin"
-      ? "Enter your company website"
-      : "Enter your LinkedIn profile URL";
+  role === "companyadmin"
+    ? "Enter your company website"
+    : "Enter your LinkedIn profile URL";
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center px-4">
@@ -326,15 +327,15 @@ if (country === "India") {
             </p>
           )}
 
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="candidate">Job Seeker</option>
-            <option value="recruiter">Recruiter</option>
-            <option value="company-admin">Company Admin</option>
-          </select>
+         <select
+  value={role}
+  onChange={(e) => setRole(e.target.value)}
+  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+>
+  <option value="candidate">Job Seeker</option>
+  <option value="recruiter">Recruiter</option>
+  <option value="companyadmin">Company Admin</option>
+</select>
 
           <input
             type="text"

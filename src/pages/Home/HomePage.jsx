@@ -25,6 +25,8 @@ export default function HomePage() {
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [message, setMessage] = useState("");
+    const [showVerificationPrompt, setShowVerificationPrompt] = useState(false);
+  const [verificationPendingUser, setVerificationPendingUser] = useState(null);
 const navigate = useNavigate();
 
 
@@ -34,7 +36,7 @@ const navigate = useNavigate();
 
 
     // --- Login Existing User ---
- async function handleLogin(e) {
+async function handleLogin(e) {
   e.preventDefault();
   const email = e.target[0].value;
   const password = e.target[1].value;
@@ -46,66 +48,58 @@ const navigate = useNavigate();
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Check email verification
+    // ✅ If user’s email is not verified
     if (!user.emailVerified) {
-      alert("⚠️ Your email is not verified. Please check your inbox for the verification link.");
-      await signOut(auth); // force logout
+      setVerificationPendingUser(user);
+      setShowVerificationPrompt(true);
+      await signOut(auth); // logout to prevent access before verification
       return;
     }
 
     // ✅ Logged in successfully
-const userDoc = await getDoc(doc(db, "users", user.uid));
+    const userDoc = await getDoc(doc(db, "users", user.uid));
 
-if (userDoc.exists()) {
-  const role = userDoc.data().role;
-  console.log("User role:", role);
+    if (userDoc.exists()) {
+      const role = userDoc.data().role;
+      console.log("User role:", role);
 
-  if (role === "superadmin") {
-    navigate("/superadmin");
-  } else if (role === "companyadmin") {
-    navigate("/company-admin/dashboard");
-} else if (role === "recruiter") {
-    navigate("/recruiter/dashboard");
-  } else {
-    alert("⚠️ Unknown role, please contact support.");
+      if (role === "superadmin") navigate("/superadmin");
+      else if (role === "companyadmin") navigate("/company-admin/dashboard");
+      else if (role === "recruiter") navigate("/recruiter/dashboard");
+      else alert("⚠️ Unknown role, please contact support.");
+    } else {
+      alert("⚠️ No user record found in Firestore!");
+    }
+
+  } catch (err) {
+    console.error("❌ Login Error:", err.code, err.message);
+
+    let friendlyMessage = "❌ Unable to log in. Please try again.";
+
+    switch (err.code) {
+      case "auth/invalid-email":
+        friendlyMessage = "⚠️ Please enter a valid email address.";
+        break;
+      case "auth/user-not-found":
+        friendlyMessage = "⚠️ No account found with this email.";
+        break;
+      case "auth/wrong-password":
+        friendlyMessage = "⚠️ Incorrect password. Please try again.";
+        break;
+      case "auth/invalid-credential":
+        friendlyMessage = "⚠️ Invalid credentials. Check your email and password.";
+        break;
+      case "auth/too-many-requests":
+        friendlyMessage = "⚠️ Too many failed attempts. Try again later.";
+        break;
+      default:
+        friendlyMessage = "❌ Login failed. Please try again later.";
+    }
+
+    alert(friendlyMessage);
   }
-} else {
-  alert("⚠️ No user record found in Firestore!");
 }
-
- } catch (err) {
-  error("❌ Login Error:", err.code, err.message);
-
-  let friendlyMessage = "❌ Unable to log in. Please try again.";
-
-  switch (err.code) {
-    case "auth/invalid-email":
-      friendlyMessage = "⚠️ Please enter a valid email address.";
-      break;
-    case "auth/user-not-found":
-      friendlyMessage = "⚠️ No account found with this email.";
-      break;
-    case "auth/wrong-password":
-      friendlyMessage = "⚠️ Incorrect password. Please try again.";
-      break;
-    case "auth/invalid-credential":
-      friendlyMessage = "⚠️ Invalid credentials. Check your email and password.";
-      break;
-    case "auth/too-many-requests":
-      friendlyMessage = "⚠️ Too many failed attempts. Try again later.";
-      break;
-    default:
-      friendlyMessage = "❌ Login failed. Please try again later.";
-  }
-
-  alert(friendlyMessage);
-}
-
-}
-
-
-
-    // --- Google Sign-In ---
+// --- Google Sign-In ---
   async function handleGoogleLogin() {
   try {
     await setPersistence(auth, browserLocalPersistence);
@@ -154,20 +148,21 @@ if (userDoc.exists()) {
 
 
   useEffect(() => {
-    async function testFirestore() {
-      try {
-        const snapshot = await getDocs(collection(db, "test"));
-        log(
-          "✅ Firebase Connected:",
-          snapshot.empty ? "No data yet" : "Data found"
-        );
-      } catch (error) {
-        error("❌ Firebase Error:", error);
-      }
+  async function testFirestore() {
+    try {
+      const snapshot = await getDocs(collection(db, "test"));
+      log(
+        "✅ Firebase Connected:",
+        snapshot.empty ? "No data yet" : "Data found"
+      );
+    } catch (error) {
+      error("❌ Firebase Error:", error);
     }
-    testFirestore();
-  }, []);
- useEffect(() => {
+  }
+  testFirestore();
+}, []);
+
+useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (user) => {
     if (user) {
       if (user.emailVerified) {
@@ -185,6 +180,20 @@ if (userDoc.exists()) {
   });
   return () => unsubscribe();
 }, []);
+
+// 🧩 Detect expired verification link
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get("mode");
+  const error = params.get("error");
+
+  if (mode === "verifyEmail" && error === "expired-action-code") {
+    alert(
+      "⚠️ Your email verification link has expired. Please log in and click 'Resend Verification Link' to get a new one."
+    );
+  }
+}, []);
+
 
 
 
@@ -286,6 +295,29 @@ if (userDoc.exists()) {
 
               </form>
                        ) : null}
+                       {showVerificationPrompt && (
+  <div className="mt-5 border border-yellow-300 bg-yellow-50 rounded-lg p-4 text-center">
+    <p className="text-yellow-700 mb-3">
+      ⚠️ Your email is not verified. Please check your inbox or resend the verification link.
+    </p>
+    <button
+      onClick={async () => {
+        try {
+          await sendEmailVerification(verificationPendingUser);
+          alert("✅ Verification email sent again! Please check your inbox.");
+          setShowVerificationPrompt(false);
+        } catch (error) {
+          console.error("Error resending verification:", error);
+          alert("❌ Failed to resend verification email. Please try again.");
+        }
+      }}
+      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+    >
+      Resend Verification Link
+    </button>
+  </div>
+)}
+
 
             {/* Forgot Password Reset Form */}
             {showReset && (

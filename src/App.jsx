@@ -6,6 +6,8 @@ import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminPage";
 import SuperAdminLogin from "./pages/SuperAdmin/SuperAdminLogin"; // 👈 Add this
 import SignupPage from "./pages/Signup/SignupPage";
 import CompanyAdminProfile from "./pages/CompanyAdmin/CompanyAdminProfile";
+import CompanyAdminDashboard from "./pages/CompanyAdmin/CompanyAdminDashboard";
+
 
 
 
@@ -38,6 +40,15 @@ function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="/company-admin/dashboard"
+  element={
+    <ProtectedRoute allowedRole="companyadmin">
+      <CompanyAdminDashboard />
+    </ProtectedRoute>
+  }
+/>
+
 
 
 

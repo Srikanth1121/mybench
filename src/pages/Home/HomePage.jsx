@@ -63,8 +63,8 @@ if (userDoc.exists()) {
   if (role === "superadmin") {
     navigate("/superadmin");
   } else if (role === "companyadmin") {
-    navigate("/company-admin/profile");
-  } else if (role === "recruiter") {
+    navigate("/company-admin/dashboard");
+} else if (role === "recruiter") {
     navigate("/recruiter/dashboard");
   } else {
     alert("⚠️ Unknown role, please contact support.");

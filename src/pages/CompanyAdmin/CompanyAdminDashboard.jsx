@@ -75,15 +75,16 @@ export default function CompanyAdminDashboard() {
         <div className="flex items-center gap-6 text-sm font-medium">
           {/* ✅ Profile button now checks if company exists */}
           <button
-            onClick={() => {
-              if (!companyData) {
-                // No company yet → show onboarding modal
-                setShowOnboarding(true);
-              } else {
-                // Company exists → go to profile page
-                navigate("/company-admin/profile");
-              }
-            }}
+           onClick={() => {
+  if (!userData?.companyId) {
+    // No company yet → show onboarding modal
+    setShowOnboarding(true);
+  } else {
+    // Company exists → go to profile page
+    navigate("/company-admin/profile");
+  }
+}}
+
             className="hover:text-blue-600"
           >
             Profile
@@ -128,26 +129,27 @@ export default function CompanyAdminDashboard() {
       </div>
 
       {/* ---------- Company Onboarding Modal ---------- */}
-      {showOnboarding && user && (
+          {showOnboarding && user && (
         <CompanyOnboardingModal
           userId={user.uid}
           userCountry={userData?.country}
           onClose={async () => {
             setShowOnboarding(false);
 
-            // ✅ Re-fetch data after saving company info
-            setTimeout(async () => {
-              const userRef = doc(db, "users", user.uid);
-              const updatedSnap = await getDoc(userRef);
-              if (updatedSnap.exists()) {
-                const updatedUser = updatedSnap.data();
-                setUserData(updatedUser);
+            // 🔁 Re-fetch the updated user record immediately
+            const userRef = doc(db, "users", user.uid);
+            const updatedSnap = await getDoc(userRef);
 
-                if (updatedUser.companyId) {
-                  await fetchCompanyData(updatedUser.companyId);
-                }
+            if (updatedSnap.exists()) {
+              const updatedUser = updatedSnap.data();
+              setUserData(updatedUser);
+
+              // ✅ Fetch company details if company was created
+              if (updatedUser.companyId) {
+                await fetchCompanyData(updatedUser.companyId);
+                setShowOnboarding(false);
               }
-            }, 1000);
+            }
           }}
         />
       )}

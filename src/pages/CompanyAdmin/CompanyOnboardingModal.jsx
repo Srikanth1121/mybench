@@ -1,19 +1,22 @@
 import React, { useState } from "react";
 import { db } from "../../firebase/config";
-import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, updateDoc, collection, addDoc, getDoc, serverTimestamp } from "firebase/firestore";
 
-const CompanyOnboardingModal = ({ userId, userCountry, onClose }) => {
-  const [formData, setFormData] = useState({
-    companyName: "",
-    address: "",
-    state: "",
-    city: "",
-    website: "",
-    linkedin: "",
-    size: "",
-    about: "",
-    country: userCountry || "",
-  });
+
+
+const CompanyOnboardingModal = ({ userId, userCountry, onClose, existingData }) => {
+ const [formData, setFormData] = useState({
+  companyName: existingData?.companyName || "",
+  address: existingData?.address || "",
+  state: existingData?.state || "",
+  city: existingData?.city || "",
+  website: existingData?.website || "",
+  linkedin: existingData?.linkedin || "",
+  size: existingData?.size || "",
+  about: existingData?.about || "",
+  country: existingData?.country || userCountry || "",
+});
+
 
   const [saving, setSaving] = useState(false);
 
@@ -32,12 +35,49 @@ const CompanyOnboardingModal = ({ userId, userCountry, onClose }) => {
     setSaving(true);
     try {
       // Step 1 — Add new company document
-      const companiesRef = collection(db, "companies");
-      const docRef = await addDoc(companiesRef, {
+     let docRef;
+
+if (existingData) {
+  // ✅ Use userId’s company reference
+  const userRef = doc(db, "users", userId);
+  const userSnap = await getDoc(userRef);
+
+  if (userSnap.exists()) {
+    const userData = userSnap.data();
+    const companyId = userData?.companyId;
+
+    if (companyId) {
+      const companyRef = doc(db, "companies", companyId);
+      await updateDoc(companyRef, {
         ...formData,
-        createdBy: userId,
-        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
+
+      alert("✅ Company profile updated successfully!");
+      onClose();
+      return;
+    } else {
+      alert("❌ No company reference found for this user.");
+      return;
+    }
+  } else {
+    alert("❌ User record not found.");
+    return;
+  }
+}
+ else {
+  // Create new company
+  const companiesRef = collection(db, "companies");
+  docRef = await addDoc(companiesRef, {
+    ...formData,
+    createdBy: userId,
+    createdAt: serverTimestamp(),
+  });
+
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, { companyId: docRef.id });
+}
+
 
       // Step 2 — Update user's companyId
       const userRef = doc(db, "users", userId);
@@ -57,8 +97,9 @@ const CompanyOnboardingModal = ({ userId, userCountry, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-xl relative">
         <h2 className="text-xl font-semibold mb-4 text-gray-800 text-center">
-          Company Onboarding
-        </h2>
+  {existingData ? "Edit Company Profile" : "Company Onboarding"}
+</h2>
+
 
         {/* Form Fields */}
         <div className="space-y-3">

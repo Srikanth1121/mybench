@@ -1,11 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import { db } from "../../firebase/config";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+
 import { useNavigate } from "react-router-dom";
 import CompanyOnboardingModal from "./CompanyOnboardingModal";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+// Step 6 — Lucide icons for Dashboard cards
+import { Users, Briefcase, UserCheck, Wallet } from "lucide-react";
+import RecruiterManagement from "./RecruiterManagement";
+
+
 
 
 
@@ -17,6 +30,14 @@ export default function CompanyAdminDashboard() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [activeSection, setActiveSection] = useState("Dashboard");
 const [showEditProfile, setShowEditProfile] = useState(false);
+// Dashboard summary stats
+const [recruiterCount, setRecruiterCount] = useState(0);
+const [jobCount, setJobCount] = useState(0);
+const [candidateCount, setCandidateCount] = useState(0);
+const [creditBalance, setCreditBalance] = useState(0);
+const [loadingStats, setLoadingStats] = useState(true);
+
+
 
 
 
@@ -26,6 +47,8 @@ const [showEditProfile, setShowEditProfile] = useState(false);
   // ✅ Helper to fetch company data from Firestore
   const fetchCompanyData = async (companyId) => {
     if (!companyId) return;
+   
+
     try {
       const companyRef = doc(db, "companies", companyId);
       const companySnap = await getDoc(companyRef);
@@ -34,8 +57,54 @@ const [showEditProfile, setShowEditProfile] = useState(false);
       }
     } catch (error) {
       console.error("Error fetching company data:", error);
+     
+
     }
   };
+// ✅ Fetch company-level dashboard stats
+const fetchDashboardStats = async (companyId) => {
+  try {
+    if (!companyId) return;
+    setLoadingStats(true);
+
+
+    
+
+    // 🔹 Fetch recruiters count from subcollection
+    const recruitersRef = collection(db, "companies", companyId, "recruiters");
+    const recruitersSnap = await getDocs(recruitersRef);
+    console.log("✅ Recruiters fetched:", recruitersSnap.size);
+    setRecruiterCount(recruitersSnap.size);
+
+    // 🔹 Fetch jobs count
+    const jobsRef = collection(db, "jobs");
+    const jobsSnap = await getDocs(
+      query(jobsRef, where("companyId", "==", companyId))
+    );
+    setJobCount(jobsSnap.size);
+
+    // 🔹 Fetch candidates count
+    const candidatesRef = collection(db, "candidates");
+    const candidatesSnap = await getDocs(
+      query(candidatesRef, where("companyId", "==", companyId))
+    );
+    setCandidateCount(candidatesSnap.size);
+
+    // 🔹 Fetch credits (from company document)
+    const companyRef = doc(db, "companies", companyId);
+    const companySnap = await getDoc(companyRef);
+    if (companySnap.exists()) {
+      const data = companySnap.data();
+      setCreditBalance(data.credits || 0);
+    }
+
+  } catch (error) {
+    console.error("❌ Error fetching dashboard stats:", error);
+  } finally {
+    setLoadingStats(false);
+  }
+};
+
 
   // ✅ Detect logged-in user and get Firestore user info
   useEffect(() => {
@@ -57,7 +126,10 @@ const [showEditProfile, setShowEditProfile] = useState(false);
           // Fetch company data if companyId exists
           if (data.companyId) {
             await fetchCompanyData(data.companyId);
+            await fetchDashboardStats(data.companyId);
+
           }
+          
         }
       } else {
         navigate("/"); // redirect to login if not logged in
@@ -98,6 +170,57 @@ const [showEditProfile, setShowEditProfile] = useState(false);
 
       {/* Dynamic Content */}
       <main className="flex-1 p-8 bg-background">
+{activeSection === "Dashboard" && (
+  <div className="p-4">
+    <h1 className="text-2xl font-semibold text-textPrimary mb-6">
+      📊 Company Overview
+    </h1>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Summary Cards — we’ll populate these in next step */}
+    <div className="bg-card border border-border rounded-2xl shadow-sm p-6 text-center hover:shadow-md transition">
+  <div className="flex justify-center mb-3">
+    <Users className="w-8 h-8 text-blue-600" />
+  </div>
+  <p className="text-textSecondary text-sm">Recruiters</p>
+  <h2 className="text-3xl font-bold mt-2">
+    {loadingStats ? "…" : recruiterCount}
+  </h2>
+</div>
+
+
+<div className="bg-card border border-border rounded-2xl shadow-sm p-6 text-center hover:shadow-md transition">
+  <div className="flex justify-center mb-3">
+    <Briefcase className="w-8 h-8 text-green-600" />
+  </div>
+  <p className="text-textSecondary text-sm">Jobs</p>
+  <h2 className="text-3xl font-bold mt-2">
+    {loadingStats ? "…" : jobCount}
+  </h2>
+</div>
+
+<div className="bg-card border border-border rounded-2xl shadow-sm p-6 text-center hover:shadow-md transition">
+  <div className="flex justify-center mb-3">
+    <UserCheck className="w-8 h-8 text-purple-600" />
+  </div>
+  <p className="text-textSecondary text-sm">Candidates</p>
+  <h2 className="text-3xl font-bold mt-2">
+    {loadingStats ? "…" : candidateCount}
+  </h2>
+</div>
+
+<div className="bg-card border border-border rounded-2xl shadow-sm p-6 text-center hover:shadow-md transition">
+  <div className="flex justify-center mb-3">
+    <Wallet className="w-8 h-8 text-orange-500" />
+  </div>
+  <p className="text-textSecondary text-sm">Credits</p>
+  <h2 className="text-3xl font-bold mt-2">
+    {loadingStats ? "…" : creditBalance}
+  </h2>
+</div>
+ </div>
+  </div>
+)}
 
   {activeSection === "Profile" && (
   <div className="bg-card border border-border rounded-2xl shadow-sm p-8 max-w-3xl mx-auto">
@@ -251,11 +374,9 @@ const [showEditProfile, setShowEditProfile] = useState(false);
 
 
   {activeSection === "Recruiters" && (
-    <h1 className="text-xl font-semibold text-textPrimary tracking-tight">
+  <RecruiterManagement companyId={userData?.companyId} />
+)}
 
-      👥 Manage Recruiters (coming soon)
-    </h1>
-  )}
 
   {activeSection === "Candidates" && (
     <h1 className="text-xl font-semibold text-textPrimary tracking-tight">

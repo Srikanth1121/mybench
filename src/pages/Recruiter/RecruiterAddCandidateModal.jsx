@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../../firebase/config";
 import { collection, addDoc, serverTimestamp, getDoc, doc, updateDoc } from "firebase/firestore";
-
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth } from "firebase/auth";////
 import Select from "react-select";
+import { indiaStates, usaStates, visaOptions } from "../../constants/Data";
+
 
 
 
@@ -41,27 +42,6 @@ useEffect(() => {
   }
 }, [show]);
 
-// ✅ Country-specific state lists
-const indiaStates = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand",
-  "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
-  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan",
-  "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
-  "Uttarakhand", "West Bengal"
-];
-
-const usaStates = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
-  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
-  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
-  "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
-  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
-  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
-  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
-  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
-  "Washington", "West Virginia", "Wisconsin", "Wyoming"
-];
 // ✅ Helper function to get states based on selected country
 const getStateOptions = () => {
   const list = formData?.country === "USA" ? usaStates : indiaStates;
@@ -84,29 +64,26 @@ const getStateOptions = () => {
   resumeFile: null,
   resumeText: "",
 });
-
-// ✅ Pre-fill modal when editing an existing candidate
+// ✅ Prefill data when editing an existing candidate
 useEffect(() => {
-  if (editingCandidate) {
-    setFormData({
-      fullName: editingCandidate.fullName || "",
-      email: editingCandidate.email || "",
-      country: editingCandidate.country || "India",
-      mobile: editingCandidate.mobile || "",
-      experience: editingCandidate.experience || "",
-      jobTitle: editingCandidate.jobTitle || "",
-      city: editingCandidate.city || "",
-      state: editingCandidate.state || "",
-      qualification: editingCandidate.qualification || "",
-      gender: editingCandidate.gender || "",
-      visaType: editingCandidate.visaType || "",
-      linkedin: editingCandidate.linkedin || "",
-      resumeFile: null,
-      resumeText: editingCandidate.resumeText || "",
-    });
-  }
+  if (!editingCandidate) return;
+  setFormData({
+    fullName: editingCandidate.fullName || "",
+    email: editingCandidate.email || "",
+    country: editingCandidate.country || "India",
+    mobile: editingCandidate.mobile || "",
+    experience: editingCandidate.experience || "",
+    jobTitle: editingCandidate.jobTitle || "",
+    city: editingCandidate.city || "",
+    state: editingCandidate.state || "",
+    qualification: editingCandidate.qualification || "",
+    gender: editingCandidate.gender || "",
+    visaType: editingCandidate.visaType || "",
+    linkedin: editingCandidate.linkedin || "",
+    resumeFile: null,
+    resumeText: editingCandidate.resumeText || "",
+  });
 }, [editingCandidate]);
-
 
 
 
@@ -207,21 +184,19 @@ const candidateData = {
   createdAt: serverTimestamp(),
 };
 
-if (editingCandidate) {
-  // ✅ Update existing candidate
-  const candidateRef = doc(db, "candidates", editingCandidate.id);
-  await updateDoc(candidateRef, candidateData);
+if (editingCandidate && editingCandidate.id) {
+  // 📝 Update existing candidate
+  await updateDoc(doc(db, "candidates", editingCandidate.id), candidateData);
   alert("✅ Candidate updated successfully!");
+  onClose(); // 👈 closes modal after alert
 } else {
-  // ✅ Add new candidate
+  // ➕ Add new candidate
   await addDoc(collection(db, "candidates"), candidateData);
   alert("✅ Candidate added successfully!");
+  onClose(); // 👈 closes modal after alert
 }
 
-onClose();
 
-    alert("✅ Candidate saved successfully!");
-    onClose();
   } catch (error) {
     console.error("Error saving candidate:", error);
     alert("❌ Failed to save candidate. Check console for details.");
@@ -429,16 +404,16 @@ return (
     required
   >
     <option value="">Select VISA Type</option>
-    <option value="H-1B">H-1B – Specialty Occupations</option>
-    <option value="L-1A">L-1A – Intracompany Transferee (Manager/Executive)</option>
-    <option value="L-1B">L-1B – Intracompany Transferee (Specialized Knowledge)</option>
-    <option value="OPT">OPT – Optional Practical Training</option>
-    <option value="CPT">CPT – Curricular Practical Training</option>
-    <option value="TN">TN – NAFTA Professionals (Canada/Mexico)</option>
-    <option value="E-3">E-3 – Australian Specialty Occupation</option>
-    <option value="H-4 EAD">H-4 EAD – Dependent Work Authorization</option>
-    <option value="O-1">O-1 – Extraordinary Ability</option>
-    <option value="Green Card">Green Card Holder</option>
+    <option value="H-1B">H-1B</option>
+    <option value="L-1A">L-1A</option>
+    <option value="L-1B">L-1B</option>
+    <option value="OPT">OPT</option>
+    <option value="CPT">CPT</option>
+    <option value="TN">TN</option>
+    <option value="E-3">E-3</option>
+    <option value="H-4 EAD">H-4 EAD</option>
+    <option value="O-1">O-1</option>
+    <option value="Green Card">Green Card</option>
     <option value="US Citizen">US Citizen</option>
   </select>
 )}

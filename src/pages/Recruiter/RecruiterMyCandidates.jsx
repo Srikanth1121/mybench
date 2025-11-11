@@ -4,6 +4,8 @@ import { db } from "../../firebase/config";
 import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { Pencil, Trash2 } from "lucide-react";
+import { indiaStates, usaStates, visaOptions } from "../../constants/Data";
+
 const RecruiterMyCandidates = () => {
   const [showModal, setShowModal] = useState(false);
   const [candidates, setCandidates] = useState([]);
@@ -11,10 +13,39 @@ const RecruiterMyCandidates = () => {
   // ✅ Pagination
 const [currentPage, setCurrentPage] = useState(1);
 const candidatesPerPage = 10;
-// ✅ Country-based separation and toggle
-const [activeTab, setActiveTab] = useState("India");
-const [indiaCandidates, setIndiaCandidates] = useState([]);
-const [usaCandidates, setUsaCandidates] = useState([]);
+  // ✅ Country-based separation and toggle
+  const [activeTab, setActiveTab] = useState("India");
+  const [indiaCandidates, setIndiaCandidates] = useState([]);
+  const [usaCandidates, setUsaCandidates] = useState([]);
+
+  // 🔹 Advanced Filter States
+  const [minExp, setMinExp] = useState("");
+  const [maxExp, setMaxExp] = useState("");
+  const [stateQuery, setStateQuery] = useState("");
+  const [visaQuery, setVisaQuery] = useState("");
+  const [jobTitleQuery, setJobTitleQuery] = useState("");
+  const [recruiterCountry, setRecruiterCountry] = useState(null);
+// 🔹 Derived filters
+  const filteredStates = (recruiterCountry === "USA" ? usaStates : indiaStates).filter((s) =>
+    s.toLowerCase().includes(stateQuery.toLowerCase())
+  );
+
+  const filteredVisas = visaOptions.filter((v) =>
+    v.toLowerCase().includes(visaQuery.toLowerCase())
+  );
+// ✅ Filter Action Handlers
+const handleApplyFilters = () => {
+  setCurrentPage(1); // reset pagination to first page
+};
+
+const handleResetFilters = () => {
+  setMinExp("");
+  setMaxExp("");
+  setStateQuery("");
+  setVisaQuery("");
+  setJobTitleQuery("");
+  setCurrentPage(1);
+};
 
 
 
@@ -24,7 +55,7 @@ const [selectedCandidate, setSelectedCandidate] = useState(null);
 const [editingCandidate, setEditingCandidate] = useState(null);
 
   const auth = getAuth();
-  const [recruiterCountry, setRecruiterCountry] = useState(null);
+
 
 useEffect(() => {
   const user = auth.currentUser;
@@ -102,12 +133,43 @@ const handleDelete = async (id, name) => {
   }
 };
 // ✅ Pagination Logic (show 10 candidates per page)
+// ✅ Apply Advanced Filters (client-side before pagination)
+const filteredCandidates = candidates.filter((cand) => {
+  // Experience Filter
+  const expNumber = parseInt(cand.experience?.replace(/\D/g, "")) || 0;
+
+  const min = minExp ? parseInt(minExp) : 0;
+  const max = maxExp ? parseInt(maxExp) : 100;
+  const matchExp = expNumber >= min && expNumber <= max;
+
+  // State Filter
+  const matchState = stateQuery
+    ? cand.state?.toLowerCase().includes(stateQuery.toLowerCase())
+    : true;
+
+  // Visa Filter (only if USA recruiter)
+  const matchVisa =
+    recruiterCountry === "USA"
+      ? visaQuery
+        ? cand.visaType?.toLowerCase().includes(visaQuery.toLowerCase())
+        : true
+      : true;
+
+  // Job Title Filter
+  const matchJob = jobTitleQuery
+    ? cand.jobTitle?.toLowerCase().includes(jobTitleQuery.toLowerCase())
+    : true;
+
+  return matchExp && matchState && matchVisa && matchJob;
+});
+
 const indexOfLastCandidate = currentPage * candidatesPerPage;
 const indexOfFirstCandidate = indexOfLastCandidate - candidatesPerPage;
-const currentCandidates = candidates.slice(indexOfFirstCandidate, indexOfLastCandidate);
+const currentCandidates = filteredCandidates.slice(indexOfFirstCandidate, indexOfLastCandidate);
 
-// ✅ Calculate total number of pages
-const totalPages = Math.ceil(candidates.length / candidatesPerPage);
+// ✅ Calculate total number of pages (after filters)
+const totalPages = Math.ceil(filteredCandidates.length / candidatesPerPage);
+
   return (
     <div className="py-6">
       {/* Page Heading (Compact) */}
@@ -123,7 +185,98 @@ const totalPages = Math.ceil(candidates.length / candidatesPerPage);
 
       {/* Candidate List */}
       
-      <div className="bg-white rounded-lg shadow p-0 w-full">
+      {/* ================= Advanced Filters (Country-Aware + Searchable) ================= */}
+<div className="flex flex-wrap items-end gap-3 mb-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+  {/* Experience Range */}
+  <div className="flex flex-col">
+    <label className="text-sm font-medium text-gray-600 mb-1">Experience (Years)</label>
+    <div className="flex gap-2">
+      <input
+        type="number"
+        placeholder="Min"
+        value={minExp}
+        onChange={(e) => setMinExp(e.target.value)}
+        className="w-20 border border-gray-300 rounded-lg p-2 text-sm"
+      />
+      <span className="self-center text-gray-500">to</span>
+      <input
+        type="number"
+        placeholder="Max"
+        value={maxExp}
+        onChange={(e) => setMaxExp(e.target.value)}
+        className="w-20 border border-gray-300 rounded-lg p-2 text-sm"
+      />
+    </div>
+  </div>
+
+  {/* State */}
+  <div className="flex flex-col">
+    <label className="text-sm font-medium text-gray-600 mb-1">State</label>
+    <input
+      type="text"
+      placeholder="Type or select state"
+      value={stateQuery}
+      onChange={(e) => setStateQuery(e.target.value)}
+      list="stateList"
+      className="w-40 border border-gray-300 rounded-lg p-2 text-sm"
+    />
+    <datalist id="stateList">
+      {filteredStates.slice(0, 15).map((s) => (
+        <option key={s} value={s} />
+      ))}
+    </datalist>
+  </div>
+
+  {/* Visa Type */}
+  {recruiterCountry === "USA" && (
+    <div className="flex flex-col">
+      <label className="text-sm font-medium text-gray-600 mb-1">Visa Type</label>
+      <input
+        type="text"
+        placeholder="Type or select visa"
+        value={visaQuery}
+        onChange={(e) => setVisaQuery(e.target.value)}
+        list="visaList"
+        className="w-36 border border-gray-300 rounded-lg p-2 text-sm"
+      />
+      <datalist id="visaList">
+        {filteredVisas.map((v) => (
+          <option key={v} value={v} />
+        ))}
+      </datalist>
+    </div>
+  )}
+
+  {/* Job Title */}
+  <div className="flex flex-col">
+    <label className="text-sm font-medium text-gray-600 mb-1">Job Title</label>
+    <input
+      type="text"
+      placeholder="Search by Job Title"
+      value={jobTitleQuery}
+      onChange={(e) => setJobTitleQuery(e.target.value)}
+      className="w-48 border border-gray-300 rounded-lg p-2 text-sm"
+    />
+  </div>
+
+  {/* Buttons */}
+  <div className="flex gap-2 ml-auto">
+    <button
+      onClick={handleApplyFilters}
+      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition"
+    >
+      Apply
+    </button>
+    <button
+      onClick={handleResetFilters}
+      className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition"
+    >
+      Reset
+    </button>
+  </div>
+</div>
+{/* ================= End Filters ================= */}
+
         {loading ? (
           <p className="text-gray-500 text-center">Loading candidates...</p>
         ) : candidates.length === 0 ? (
@@ -282,63 +435,58 @@ className="text-gray-700 hover:text-red-600 inline-flex items-center justify-cen
   </button>
 </div>
 
-
-      </div>
-
-      {/* Add Candidate Modal */}
+      {/* ✅ Add Candidate Modal */}
       <RecruiterAddCandidateModal
-  show={showModal}
-  onClose={() => {
-    setShowModal(false);
-    setEditingCandidate(null); // reset after closing
-  }}
-  editingCandidate={editingCandidate} // ✅ pass candidate to modal
-/>
+        show={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingCandidate(null); // reset after closing
+        }}
+        editingCandidate={editingCandidate}
+      />
 
       {/* ✅ Delete Confirmation Modal */}
-{showDeleteModal && selectedCandidate && (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-      <h2 className="text-lg font-semibold mb-3">
-        Delete Candidate
-      </h2>
-      <p className="text-gray-600 mb-6">
-        Are you sure you want to delete{" "}
-        <span className="font-medium text-gray-900">
-          {selectedCandidate.fullName}
-        </span>
-        ?
-      </p>
+      {showDeleteModal && selectedCandidate && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
+            <h2 className="text-lg font-semibold mb-3">Delete Candidate</h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-gray-900">
+                {selectedCandidate.fullName}
+              </span>
+              ?
+            </p>
 
-      <div className="flex justify-center space-x-3">
-        <button
-          onClick={() => setShowDeleteModal(false)}
-          className="bg-blue-900 text-white px-1 py-1 rounded-lg hover:bg-blue-500"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={async () => {
-            try {
-              await deleteDoc(doc(db, "candidates", selectedCandidate.id));
-              setShowDeleteModal(false);
-              alert("✅ Candidate deleted successfully!");
-            } catch (error) {
-              console.error("Error deleting candidate:", error);
-              alert("❌ Failed to delete candidate.");
-            }
-          }}
-          className="bg-blue-900 text-white px-1 py-1 rounded-lg hover:bg-blue-500"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-    </div>
-  );
+            <div className="flex justify-center space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteDoc(doc(db, "candidates", selectedCandidate.id));
+                    setShowDeleteModal(false);
+                    alert("✅ Candidate deleted successfully!");
+                  } catch (error) {
+                    console.error("Error deleting candidate:", error);
+                    alert("❌ Failed to delete candidate.");
+                  }
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+           )}
+        </div>
+  ); // closes the main container
 };
+
 
 export default RecruiterMyCandidates;

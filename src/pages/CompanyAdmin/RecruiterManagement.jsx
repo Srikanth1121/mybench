@@ -2,15 +2,17 @@ import React, { useState, useEffect } from "react";
 import {
   collection,
   getDocs,
-  // addDoc,         // remove if you don't use it elsewhere
   setDoc,
   deleteDoc,
   doc,
+  updateDoc,   // <-- ADDED
+  getDoc,      // <-- ADDED
   serverTimestamp,
   query,
   where,
   onSnapshot,
 } from "firebase/firestore";
+
 import { db } from "../../firebase/config";
 import {
   initializeApp,
@@ -64,6 +66,29 @@ export default function RecruiterManagement({ companyId }) {
     return () => unsubscribe();
   }, [companyId]);
 
+  // ✅ NEW: Fetch Company Admin's Country
+  const [adminCountry, setAdminCountry] = useState("India"); // default fallback
+
+  useEffect(() => {
+    const fetchAdminCountry = async () => {
+      try {
+        const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+        if (!currentUser?.uid) return;
+
+        const adminRef = doc(db, "users", currentUser.uid);
+        const adminSnap = await getDoc(adminRef);
+
+        if (adminSnap.exists()) {
+          const adminData = adminSnap.data();
+          setAdminCountry(adminData.country || "India");
+        }
+      } catch (error) {
+        console.error("Error fetching admin country:", error);
+      }
+    };
+
+    fetchAdminCountry();
+  }, []);
   // ✅ Add Recruiter
   // ✅ Add Recruiter (updated version with /users write)
 const handleAddRecruiter = async (e) => {
@@ -91,27 +116,35 @@ const handleAddRecruiter = async (e) => {
     await updateProfile(newUser, { displayName: newRecruiter.name });
 
     // 🔹 Add recruiter to global `/users` collection
-    await setDoc(doc(db, "users", newUser.uid), {
-      uid: newUser.uid,
-      name: newRecruiter.name,
-      email: newRecruiter.email,
-      phone: newRecruiter.phone,
-      role: "recruiter",
-      companyId: companyId,
-      createdAt: serverTimestamp(),
-      isActive: true,
-    });
+    // 🔹 Add recruiter to global `/users` collection
+await setDoc(doc(db, "users", newUser.uid), {
+  uid: newUser.uid,
+  name: newRecruiter.name,
+  email: newRecruiter.email,
+  phone: newRecruiter.phone,
+  role: "recruiter",
+  companyId: companyId,
+  country: adminCountry,      // ✅ inherit company admin’s country
+  credits: 50,                // ✅ starting credits
+  profileComplete: false,     // ✅ triggers Info Modal
+  createdAt: serverTimestamp(),
+  isActive: true,
+});
+
 
     // 🔹 Store recruiter also under the company's recruiters subcollection
-    await setDoc(doc(db, "companies", companyId, "recruiters", newUser.uid), {
-      uid: newUser.uid,
-      name: newRecruiter.name,
-      email: newRecruiter.email,
-      phone: newRecruiter.phone,
-      role: "recruiter",
-      createdAt: serverTimestamp(),
-      isActive: true,
-    });
+    // 🔹 Store recruiter also under the company's recruiters subcollection
+await setDoc(doc(db, "companies", companyId, "recruiters", newUser.uid), {
+  uid: newUser.uid,
+  name: newRecruiter.name,
+  email: newRecruiter.email,
+  phone: newRecruiter.phone,
+  role: "recruiter",
+  country: adminCountry,      // ✅ include company’s country for reporting consistency
+  createdAt: serverTimestamp(),
+  isActive: true,
+});
+
 
     // ✅ Clear form and close modal
     setNewRecruiter({
@@ -150,21 +183,75 @@ const handleAddRecruiter = async (e) => {
       console.error("Error deleting recruiter:", error);
     }
   };
+// ✅ Temporary function: Patch old recruiters missing country/credits/profileComplete
+const patchOldRecruiters = async () => {
+  if (!companyId) {
+    alert("❌ Missing company ID");
+    return;
+  }
 
-  return (
+  if (!window.confirm("This will update all existing recruiters. Continue?")) return;
+
+  try {
+    const recruitersRef = collection(db, "companies", companyId, "recruiters");
+    const snapshot = await getDocs(recruitersRef);
+
+    for (const recruiterDoc of snapshot.docs) {
+      const recruiterData = recruiterDoc.data();
+
+      // Update only if missing fields
+      if (!recruiterData.country || recruiterData.profileComplete === undefined) {
+        const userRef = doc(db, "users", recruiterDoc.id);
+        await updateDoc(userRef, {
+          country: adminCountry,
+          credits: recruiterData.credits || 50,
+          profileComplete: recruiterData.profileComplete || false,
+        });
+
+        const companyRecruiterRef = doc(
+          db,
+          "companies",
+          companyId,
+          "recruiters",
+          recruiterDoc.id
+        );
+        await updateDoc(companyRecruiterRef, {
+          country: adminCountry,
+        });
+
+        console.log("✅ Patched recruiter:", recruiterData.email);
+      }
+    }
+
+    alert("✅ All old recruiters updated successfully!");
+  } catch (error) {
+    console.error("❌ Error patching recruiters:", error);
+    alert("Error patching recruiters — check console for details.");
+  }
+};
+return (
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold text-textPrimary">
-          👥 Recruiter Management
-        </h1>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="px-4 py-2 rounded-2xl border border-border bg-primary/5 text-primary hover:bg-primary hover:text-white transition"
-        >
-          ➕ Add Recruiter
-        </button>
-      </div>
+  <h1 className="text-2xl font-semibold text-textPrimary">
+    👥 Recruiter Management
+  </h1>
+  <div>
+    <button
+      onClick={() => setShowAdd(true)}
+      className="px-4 py-2 rounded-2xl border border-border bg-primary/5 text-primary hover:bg-primary hover:text-white transition"
+    >
+      ➕ Add Recruiter
+    </button>
+    <button
+      onClick={patchOldRecruiters}
+      className="ml-4 px-4 py-2 rounded-2xl border border-gray-400 text-gray-600 hover:bg-gray-100 transition"
+    >
+      🛠 Patch Old Recruiters
+    </button>
+  </div>
+</div>
+
 
       {/* Recruiters Table */}
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-auto">

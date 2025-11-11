@@ -198,16 +198,17 @@ if (country === "India") {
       // Save user to Firestore
       try {
         await setDoc(doc(db, "users", user.uid), {
-          name,
-          email: normalizedEmail,
-          mobile: mobile.trim().replace(/\D/g, ""), // store only digits
+  name,
+  email: normalizedEmail,
+  mobile: mobile.trim().replace(/\D/g, ""), // store only digits
+  linkedin,
+  role,
+  country,
+  credits: 50,
+  profileComplete: false,      // <- ADD THIS LINE
+  createdAt: serverTimestamp(),
+});
 
-          linkedin,
-          role,
-          country,
-          credits: 50,
-          createdAt: serverTimestamp(),
-        });
       } catch (fireErr) {
         console.error("Firestore write error:", fireErr.message);
         // We won't delete the auth user automatically here, but you could consider cleanup

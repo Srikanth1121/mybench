@@ -1,15 +1,63 @@
 // src/pages/Recruiter/RecruiterDashboard.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import RecruiterNavBar from "./RecruiterNavBar";
+import RecruiterInfoModal from "./RecruiterInfoModal"; // ✅ import modal
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../firebase/config";
 
 export default function RecruiterDashboard() {
+  const [showModal, setShowModal] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const auth = getAuth();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userRef = doc(db, "users", user.uid); // 🔁 change to "recruiters" if that’s your collection
+          const userSnap = await getDoc(userRef);
+
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            // show modal if mandatory fields are missing
+            if (!data.profileComplete || !data.state || !data.linkedin) {
+              setShowModal(true);
+            }
+          } else {
+            // no Firestore record yet
+            setShowModal(true);
+          }
+        } catch (error) {
+          console.error("Error fetching recruiter profile:", error);
+        }
+      }
+      setLoadingProfile(false);
+    });
+
+    return () => unsubscribe();
+  }, [auth]);
+
+  if (loadingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-600">
+        Loading dashboard...
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <RecruiterNavBar />
+
+      {/* Main content */}
       <main className="max-w-7xl mx-auto px-6 py-6">
         <Outlet />
       </main>
+
+      {/* Info Modal appears if profile incomplete */}
+      <RecruiterInfoModal show={showModal} onClose={() => setShowModal(false)} />
     </div>
   );
 }

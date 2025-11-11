@@ -7,6 +7,8 @@ import SuperAdminLogin from "./pages/SuperAdmin/SuperAdminLogin"; // 👈 Add th
 import SignupPage from "./pages/Signup/SignupPage";
 import CompanyAdminProfile from "./pages/CompanyAdmin/CompanyAdminProfile";
 import CompanyAdminDashboard from "./pages/CompanyAdmin/CompanyAdminDashboard";
+import RecruiterDashboard from "./pages/Recruiter/RecruiterDashboard"; // 👈 Add this import at the top
+
 
 
 
@@ -48,6 +50,15 @@ function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="/recruiter/dashboard/*"
+  element={
+    <ProtectedRoute allowedRole="recruiter">
+      <RecruiterDashboard />
+    </ProtectedRoute>
+  }
+/>
+
 
 
 

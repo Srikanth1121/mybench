@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db, storage } from "../../firebase/config";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth } from "firebase/auth";////
 import Select from "react-select";
@@ -12,6 +12,33 @@ const RecruiterAddCandidateModal = ({ show, onClose }) => {
 
   const [resumeMode, setResumeMode] = useState("upload"); // 'upload' or 'paste'////
   const auth = getAuth();
+  // ✅ Auto-set recruiter country when modal opens
+useEffect(() => {
+  const fetchRecruiterCountry = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      const recruiterRef = doc(db, "users", user.uid);
+
+      const recruiterSnap = await getDoc(recruiterRef);
+      if (recruiterSnap.exists()) {
+        const recruiterCountry = recruiterSnap.data().country || "India";
+        setFormData((prev) => ({
+          ...prev,
+          country: recruiterCountry,
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching recruiter country:", error);
+    }
+  };
+
+  if (show) {
+    fetchRecruiterCountry();
+  }
+}, [show]);
+
 // ✅ Country-specific state lists
 const indiaStates = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -123,26 +150,42 @@ if (!validStates.includes(formData.state)) {
     }
 
     // ✅ Prepare data for Firestore
-    const candidateData = {
-      recruiterId: user.uid,
-      fullName: formData.fullName.trim(),
-      email: formData.email.trim(),
-      mobile: formData.mobile.trim(),
-      country: formData.country,
-      visaType: formData.country === "USA" ? formData.visaType : null,
-      experience: formData.experience.trim(),
-      jobTitle: formData.jobTitle.trim(),
-      city: formData.city.trim(),
-      state: formData.state.trim(),
-      qualification: formData.qualification.trim(),
-      gender: formData.gender,
-      linkedin: formData.linkedin.trim(),
-      resumeType: formData.resumeFile ? "upload" : "paste",
-      resumeText: parsedResumeText,
-      createdAt: serverTimestamp(),
-    };
+    // ✅ Fetch recruiter’s country from Firestore
+const recruiterRef = doc(db, "users", user.uid);
 
-    await addDoc(collection(db, "candidates"), candidateData);
+const recruiterSnap = await getDoc(recruiterRef);
+
+if (!recruiterSnap.exists()) {
+  alert("❌ Recruiter profile not found.");
+  return;
+}
+
+const recruiterCountry = recruiterSnap.data().country || "India"; // Default fallback
+
+// ✅ Prepare data for Firestore
+const candidateData = {
+  recruiterId: user.uid,
+  fullName: formData.fullName.trim(),
+  email: formData.email.trim(),
+  mobile: formData.mobile.trim(),
+  country: recruiterCountry, // 👈 auto-filled, no user selection
+  visaType: recruiterCountry === "USA" ? formData.visaType : null,
+  experience: formData.experience.trim(),
+  jobTitle: formData.jobTitle.trim(),
+  city: formData.city.trim(),
+  state: formData.state.trim(),
+  qualification: formData.qualification.trim(),
+  gender: formData.gender,
+  linkedin: formData.linkedin.trim(),
+  resumeType: formData.resumeFile ? "upload" : "paste",
+  resumeText: parsedResumeText,
+  createdAt: serverTimestamp(),
+};
+
+await addDoc(collection(db, "candidates"), candidateData);
+alert("✅ Candidate saved successfully!");
+onClose();
+
     alert("✅ Candidate saved successfully!");
     onClose();
   } catch (error) {
@@ -205,27 +248,6 @@ return (
 
           {/* Mobile Number */}
          {/* Country */}
-<select
-  name="country"
-  value={formData.country}
-  onChange={(e) => {
-    const newCountry = e.target.value;
-    setFormData((prev) => ({
-      ...prev,
-      country: newCountry,
-      mobile: "", // reset mobile when country changes
-      visaType: "", // reset visa field
-      state: "",
-    }));
-  }}
-  className="w-full border rounded-lg px-3 py-1"
-  required
->
-  <option value="">Select Country</option>
-  <option value="India">India</option>
-  <option value="USA">USA</option>
-</select>
-
 {/* Mobile Number */}
 <div className="flex items-center space-x-2">
   <span className="text-gray-700 font-medium">

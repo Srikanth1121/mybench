@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import RecruiterAddCandidateModal from "./RecruiterAddCandidateModal";
 import { db } from "../../firebase/config";
-import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { Pencil, Trash2 } from "lucide-react";
-
-
-
 const RecruiterMyCandidates = () => {
   const [showModal, setShowModal] = useState(false);
   const [candidates, setCandidates] = useState([]);
@@ -14,23 +11,58 @@ const RecruiterMyCandidates = () => {
   // ✅ Pagination
 const [currentPage, setCurrentPage] = useState(1);
 const candidatesPerPage = 10;
+// ✅ Country-based separation and toggle
+const [activeTab, setActiveTab] = useState("India");
+const [indiaCandidates, setIndiaCandidates] = useState([]);
+const [usaCandidates, setUsaCandidates] = useState([]);
+
+
 
   // ✅ Delete confirmation modal state
 const [showDeleteModal, setShowDeleteModal] = useState(false);
 const [selectedCandidate, setSelectedCandidate] = useState(null);
 
   const auth = getAuth();
+  const [recruiterCountry, setRecruiterCountry] = useState(null);
+
+useEffect(() => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const fetchRecruiterCountry = async () => {
+    try {
+      const recruiterRef = doc(db, "users", user.uid); // ✅ from users collection
+      const recruiterSnap = await getDoc(recruiterRef);
+     if (recruiterSnap.exists()) {
+  const recruiterData = recruiterSnap.data();
+  setRecruiterCountry(recruiterData.country || "India");
+} else {
+  setRecruiterCountry("India");
+}
+
+    } catch (error) {
+      console.error("Error fetching recruiter country:", error);
+    }
+  };
+
+  fetchRecruiterCountry();
+}, [auth]);
+
 
   // ✅ Real-time fetch recruiter’s candidates from Firestore
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
 
-    const q = query(
-      collection(db, "candidates"),
-      where("recruiterId", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
+  // ✅ Wait until recruiterCountry is loaded before querying
+if (!recruiterCountry) return;
+
+const q = query(
+  collection(db, "candidates"),
+  where("recruiterId", "==", user.uid),
+  where("country", "==", recruiterCountry),
+  orderBy("createdAt", "desc")
+);
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map((doc) => ({
@@ -38,11 +70,17 @@ const [selectedCandidate, setSelectedCandidate] = useState(null);
         ...doc.data(),
       }));
       setCandidates(list);
-      setLoading(false);
+setLoading(false);
+
+// ✅ Split candidates by country
+setIndiaCandidates(list.filter((c) => c.country === "India"));
+setUsaCandidates(list.filter((c) => c.country === "USA"));
+
     });
 
     return () => unsubscribe();
-  }, [auth, showModal]); // refetch after modal closes (new candidate added)
+  }, [auth, showModal, recruiterCountry]);
+
 
   // ✅ Edit handler
   const handleEdit = (candidate) => {
@@ -69,7 +107,6 @@ const currentCandidates = candidates.slice(indexOfFirstCandidate, indexOfLastCan
 
 // ✅ Calculate total number of pages
 const totalPages = Math.ceil(candidates.length / candidatesPerPage);
-
   return (
     <div className="py-6">
       {/* Page Heading (Compact) */}
@@ -84,6 +121,7 @@ const totalPages = Math.ceil(candidates.length / candidatesPerPage);
       </div>
 
       {/* Candidate List */}
+      
       <div className="bg-white rounded-lg shadow p-0 w-full">
         {loading ? (
           <p className="text-gray-500 text-center">Loading candidates...</p>
@@ -94,22 +132,28 @@ const totalPages = Math.ceil(candidates.length / candidatesPerPage);
           <table className="w-full border border-gray-300 text-[13px]">
             
             {/* ✅ Table Header */}
-            <thead className="bg-gray-100 text-gray-800 border-b border-gray-300 text-xs">
-              <tr>
-                <th className="px-3 py-1 text-left border border-gray-300 w-[50px]">Sl.No</th>
-                <th className="px-3 py-1 text-left border border-gray-300">Full Name</th>
-                <th className="px-3 py-1 text-left border border-gray-300">Email</th>
-                <th className="px-3 py-1 text-left border border-gray-300">Mobile</th>
-                <th className="px-3 py-1 text-left border border-gray-300">Experience</th>
-                <th className="px-3 py-1 text-left border border-gray-300">Job Title</th>
-                <th className="px-3 py-1 text-left border border-gray-300">City</th>
-                <th className="px-3 py-1 text-left border border-gray-300">State</th>
-                <th className="px-3 py-1 text-left border border-gray-300">Qualification</th>
-                <th className="px-3 py-1 text-left border border-gray-300">Gender</th>
-                <th className="px-3 py-1 text-center border border-gray-300">LinkedIn</th>
-                <th className="px-3 py-1 text-center border border-gray-300 w-[80px]">Edit / Delete</th>
-              </tr>
-            </thead>
+           <thead className="bg-gray-100 text-gray-800 border-b border-gray-300 text-xs">
+  <tr>
+    <th className="px-3 py-1 border border-gray-300">Sl.No</th>
+    <th className="px-3 py-1 border border-gray-300">Full Name</th>
+    <th className="px-3 py-1 border border-gray-300">Email</th>
+    <th className="px-3 py-1 border border-gray-300">Mobile</th>
+    <th className="px-3 py-1 border border-gray-300">Experience</th>
+    <th className="px-3 py-1 border border-gray-300">Job Title</th>
+    <th className="px-3 py-1 border border-gray-300">City</th>
+    <th className="px-3 py-1 border border-gray-300">State</th>
+
+    {/* ✅ Visa Type column visible only for USA recruiters */}
+    {recruiterCountry === "USA" && (
+      <th className="px-3 py-1 border border-gray-300">Visa Type</th>
+    )}
+<th className="px-3 py-1 border border-gray-300">Qualification</th>
+    <th className="px-3 py-1 border border-gray-300">Gender</th>
+    <th className="px-3 py-1 border border-gray-300 text-center">LinkedIn</th>
+    <th className="px-3 py-1 border border-gray-300 text-center">Edit / Delete</th>
+  </tr>
+</thead>
+
 
             {/* ✅ Table Body */}
             <tbody className="text-xs">
@@ -126,6 +170,13 @@ const totalPages = Math.ceil(candidates.length / candidatesPerPage);
                   <td className="px-3 py-1 border border-gray-300">{candidate.jobTitle}</td>
                   <td className="px-3 py-1 border border-gray-300">{candidate.city}</td>
                   <td className="px-3 py-1 border border-gray-300">{candidate.state}</td>
+                  {/* 👇 Visa Type only for USA recruiters */}
+{recruiterCountry === "USA" && (
+  <td className="px-3 py-1 border border-gray-300">
+    {candidate.visaType || "-"}
+  </td>
+)}
+
                   <td className="px-3 py-1 border border-gray-300">{candidate.qualification}</td>
                   <td className="px-3 py-1 border border-gray-300 capitalize">{candidate.gender}</td>
 

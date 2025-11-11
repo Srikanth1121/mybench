@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../../firebase/config";
-import { collection, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, getDoc, doc, updateDoc } from "firebase/firestore";
+
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth } from "firebase/auth";////
 import Select from "react-select";
 
 
 
-const RecruiterAddCandidateModal = ({ show, onClose }) => {
+const RecruiterAddCandidateModal = ({ show, onClose, editingCandidate }) => {
+
   if (!show) return null;
 
   const [resumeMode, setResumeMode] = useState("upload"); // 'upload' or 'paste'////
@@ -82,6 +84,29 @@ const getStateOptions = () => {
   resumeFile: null,
   resumeText: "",
 });
+
+// ✅ Pre-fill modal when editing an existing candidate
+useEffect(() => {
+  if (editingCandidate) {
+    setFormData({
+      fullName: editingCandidate.fullName || "",
+      email: editingCandidate.email || "",
+      country: editingCandidate.country || "India",
+      mobile: editingCandidate.mobile || "",
+      experience: editingCandidate.experience || "",
+      jobTitle: editingCandidate.jobTitle || "",
+      city: editingCandidate.city || "",
+      state: editingCandidate.state || "",
+      qualification: editingCandidate.qualification || "",
+      gender: editingCandidate.gender || "",
+      visaType: editingCandidate.visaType || "",
+      linkedin: editingCandidate.linkedin || "",
+      resumeFile: null,
+      resumeText: editingCandidate.resumeText || "",
+    });
+  }
+}, [editingCandidate]);
+
 
 
 
@@ -182,8 +207,17 @@ const candidateData = {
   createdAt: serverTimestamp(),
 };
 
-await addDoc(collection(db, "candidates"), candidateData);
-alert("✅ Candidate saved successfully!");
+if (editingCandidate) {
+  // ✅ Update existing candidate
+  const candidateRef = doc(db, "candidates", editingCandidate.id);
+  await updateDoc(candidateRef, candidateData);
+  alert("✅ Candidate updated successfully!");
+} else {
+  // ✅ Add new candidate
+  await addDoc(collection(db, "candidates"), candidateData);
+  alert("✅ Candidate added successfully!");
+}
+
 onClose();
 
     alert("✅ Candidate saved successfully!");

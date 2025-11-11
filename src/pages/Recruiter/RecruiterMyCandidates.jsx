@@ -21,6 +21,7 @@ const [usaCandidates, setUsaCandidates] = useState([]);
   // ✅ Delete confirmation modal state
 const [showDeleteModal, setShowDeleteModal] = useState(false);
 const [selectedCandidate, setSelectedCandidate] = useState(null);
+const [editingCandidate, setEditingCandidate] = useState(null);
 
   const auth = getAuth();
   const [recruiterCountry, setRecruiterCountry] = useState(null);
@@ -204,12 +205,16 @@ const totalPages = Math.ceil(candidates.length / candidatesPerPage);
 
   {/* Edit Button */}
   <button
-    onClick={() => handleEdit(candidate)}
-    className="text-gray-700 hover:text-blue-700 inline-flex items-center justify-center"
-    title="Edit Candidate"
-  >
-    <Pencil size={15} strokeWidth={1.8} />
-  </button>
+  onClick={() => {
+    setEditingCandidate(candidate); // ✅ store selected candidate
+    setShowModal(true);             // ✅ open modal
+  }}
+  className="text-gray-700 hover:text-blue-700 inline-flex items-center justify-center"
+  title="Edit Candidate"
+>
+  <Pencil size={15} strokeWidth={1.8} />
+</button>
+
 
   {/* Delete Button */}
   <button
@@ -282,9 +287,14 @@ className="text-gray-700 hover:text-red-600 inline-flex items-center justify-cen
 
       {/* Add Candidate Modal */}
       <RecruiterAddCandidateModal
-        show={showModal}
-        onClose={() => setShowModal(false)}
-      />
+  show={showModal}
+  onClose={() => {
+    setShowModal(false);
+    setEditingCandidate(null); // reset after closing
+  }}
+  editingCandidate={editingCandidate} // ✅ pass candidate to modal
+/>
+
       {/* ✅ Delete Confirmation Modal */}
 {showDeleteModal && selectedCandidate && (
   <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">

@@ -7,6 +7,8 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 
+
+
 export default function RecruiterDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -52,7 +54,9 @@ export default function RecruiterDashboard() {
       <RecruiterNavBar />
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-6 py-6">
+    <main className="w-full px-4 md:px-2 py-3">
+
+
         <Outlet />
       </main>
 

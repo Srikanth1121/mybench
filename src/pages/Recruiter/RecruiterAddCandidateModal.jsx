@@ -1,0 +1,464 @@
+import React, { useState } from "react";
+import { db, storage } from "../../firebase/config";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getAuth } from "firebase/auth";////
+import Select from "react-select";
+
+
+
+const RecruiterAddCandidateModal = ({ show, onClose }) => {
+  if (!show) return null;
+
+  const [resumeMode, setResumeMode] = useState("upload"); // 'upload' or 'paste'////
+  const auth = getAuth();
+// ✅ Country-specific state lists
+const indiaStates = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand",
+  "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan",
+  "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
+  "Uttarakhand", "West Bengal"
+];
+
+const usaStates = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
+  "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
+  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
+  "Washington", "West Virginia", "Wisconsin", "Wyoming"
+];
+// ✅ Helper function to get states based on selected country
+const getStateOptions = () => {
+  const list = formData?.country === "USA" ? usaStates : indiaStates;
+  return list.map((st) => ({ label: st, value: st }));
+};
+
+ const [formData, setFormData] = useState({
+  fullName: "",
+  email: "",
+  country: "India",
+  mobile: "",
+  experience: "",
+  jobTitle: "",
+  city: "",
+  state: "",
+  qualification: "",
+  gender: "",
+  visaType: "",
+  linkedin: "", // ✅ new
+  resumeFile: null,
+  resumeText: "",
+});
+
+
+
+
+  const handleChange = (e) => {
+    const { name, value, files } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: files ? files[0] : value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  // Validation
+  const requiredFields = [
+    "fullName",
+    "email",
+    "country",
+    "mobile",
+    "experience",
+    "jobTitle",
+    "city",
+    "state",
+    "qualification",
+    "gender",
+  ];
+
+  // ✅ Validate that state is one of the allowed options
+const validStates = formData.country === "USA" ? usaStates : indiaStates;
+if (!validStates.includes(formData.state)) {
+  alert("Please select a valid state from the dropdown.");
+  return;
+}
+
+  if (formData.country === "USA" && !formData.visaType) {
+    alert("Please select the VISA Type for USA candidates.");
+    return;
+  }
+
+  if (!formData.resumeFile && !formData.resumeText.trim()) {
+    alert("Please either upload a resume file or paste resume text.");
+    return;
+  }
+
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("User not authenticated.");
+      return;
+    }
+
+    let parsedResumeText = "";
+
+    // ✅ Read uploaded resume text if provided
+    if (formData.resumeFile) {
+      parsedResumeText = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsText(formData.resumeFile);
+      });
+    } else {
+      parsedResumeText = formData.resumeText.trim();
+    }
+
+    // ✅ Prepare data for Firestore
+    const candidateData = {
+      recruiterId: user.uid,
+      fullName: formData.fullName.trim(),
+      email: formData.email.trim(),
+      mobile: formData.mobile.trim(),
+      country: formData.country,
+      visaType: formData.country === "USA" ? formData.visaType : null,
+      experience: formData.experience.trim(),
+      jobTitle: formData.jobTitle.trim(),
+      city: formData.city.trim(),
+      state: formData.state.trim(),
+      qualification: formData.qualification.trim(),
+      gender: formData.gender,
+      linkedin: formData.linkedin.trim(),
+      resumeType: formData.resumeFile ? "upload" : "paste",
+      resumeText: parsedResumeText,
+      createdAt: serverTimestamp(),
+    };
+
+    await addDoc(collection(db, "candidates"), candidateData);
+    alert("✅ Candidate saved successfully!");
+    onClose();
+  } catch (error) {
+    console.error("Error saving candidate:", error);
+    alert("❌ Failed to save candidate. Check console for details.");
+  }
+};
+
+return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+  <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 overflow-y-auto max-h-[80vh] relative text-[13px]">
+
+  {/* X (Close) Button */}
+{/* Sleek Close (Corporate Style) */}
+<button
+  onClick={onClose}
+  className="absolute top-3 right-4 text-gray-500 hover:text-gray-700 transition"
+  aria-label="Close"
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth="2"
+    stroke="currentColor"
+    className="w-5 h-5"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+</button>
+
+
+
+
+  <h2 className="text-2xl font-semibold mb-6">Add Candidate</h2>
+
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Full Name */}
+          <input
+            type="text"
+            name="fullName"
+            placeholder="Full Name"
+            value={formData.fullName}
+            onChange={handleChange}
+            className="w-full border rounded-lg px-3 py-1"
+            required
+          />
+
+          {/* Email ID */}
+          <input
+            type="email"
+            name="email"
+            placeholder="Email ID"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full border rounded-lg px-3 py-1"
+            required
+          />
+
+          {/* Mobile Number */}
+         {/* Country */}
+<select
+  name="country"
+  value={formData.country}
+  onChange={(e) => {
+    const newCountry = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      country: newCountry,
+      mobile: "", // reset mobile when country changes
+      visaType: "", // reset visa field
+      state: "",
+    }));
+  }}
+  className="w-full border rounded-lg px-3 py-1"
+  required
+>
+  <option value="">Select Country</option>
+  <option value="India">India</option>
+  <option value="USA">USA</option>
+</select>
+
+{/* Mobile Number */}
+<div className="flex items-center space-x-2">
+  <span className="text-gray-700 font-medium">
+    {formData.country === "USA" ? "+1" : "+91"}
+  </span>
+  <input
+    type="tel"
+    name="mobile"
+    placeholder={
+      formData.country === "USA"
+        ? "(xxx) xxx-xxxx"
+        : "xxxxx xxxxx"
+    }
+    value={formData.mobile}
+    onChange={(e) => {
+      let input = e.target.value.replace(/\D/g, ""); // digits only
+
+      if (formData.country === "India") {
+        // 10-digit Indian format: 98765 43210
+        input = input.slice(0, 10);
+        if (input.length > 5)
+          input = `${input.slice(0, 5)} ${input.slice(5)}`;
+      } else {
+        // US format: (415) 555-2671
+        input = input.slice(0, 10);
+        if (input.length > 6)
+          input = `(${input.slice(0, 3)}) ${input.slice(
+            3,
+            6
+          )}-${input.slice(6)}`;
+        else if (input.length > 3)
+          input = `(${input.slice(0, 3)}) ${input.slice(3)}`;
+      }
+
+      setFormData((prev) => ({ ...prev, mobile: input }));
+    }}
+    className="flex-1 border rounded-lg px-3 py-2"
+    required
+  />
+</div>
+
+
+          {/* Total Experience & Job Title */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              name="experience"
+              placeholder="Total Work Experience (e.g., 5 years)"
+              value={formData.experience}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-1"
+              required
+            />
+
+            <input
+              type="text"
+              name="jobTitle"
+              placeholder="Job Title"
+              value={formData.jobTitle}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-1"
+              required
+            />
+          </div>
+
+          {/* City & State */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              name="city"
+              placeholder="Current City"
+              value={formData.city}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-1"
+              required
+            />
+
+            {/* ✅ Searchable State Dropdown */}
+<Select
+  options={getStateOptions()}
+  value={
+    formData.state
+      ? { label: formData.state, value: formData.state }
+      : null
+  }
+  onChange={(selected) =>
+    setFormData((prev) => ({ ...prev, state: selected?.value || "" }))
+  }
+  placeholder="Select or type State"
+  isSearchable
+  required
+/>
+
+          </div>
+
+          {/* Qualification & Gender */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              name="qualification"
+              placeholder="Highest Qualification"
+              value={formData.qualification}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-1"
+              required
+            />
+
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-1"
+              required
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          {/* LinkedIn Profile URL */}
+<div>
+  <label className="block text-gray-700 font-medium mb-1">
+    LinkedIn Profile URL (optional)
+  </label>
+  <input
+    type="url"
+    name="linkedin"
+    placeholder="https://www.linkedin.com/in/username"
+    value={formData.linkedin}
+    onChange={handleChange}
+    className="w-full border rounded-lg px-3 py-1"
+  />
+</div>
+
+
+          {/* VISA Type - Only visible if USA */}
+{/* VISA Type - Only visible if USA */}
+{formData.country === "USA" && (
+  <select
+    name="visaType"
+    value={formData.visaType}
+    onChange={handleChange}
+    className="w-full border rounded-lg px-3 py-2 appearance-none"
+    required
+  >
+    <option value="">Select VISA Type</option>
+    <option value="H-1B">H-1B – Specialty Occupations</option>
+    <option value="L-1A">L-1A – Intracompany Transferee (Manager/Executive)</option>
+    <option value="L-1B">L-1B – Intracompany Transferee (Specialized Knowledge)</option>
+    <option value="OPT">OPT – Optional Practical Training</option>
+    <option value="CPT">CPT – Curricular Practical Training</option>
+    <option value="TN">TN – NAFTA Professionals (Canada/Mexico)</option>
+    <option value="E-3">E-3 – Australian Specialty Occupation</option>
+    <option value="H-4 EAD">H-4 EAD – Dependent Work Authorization</option>
+    <option value="O-1">O-1 – Extraordinary Ability</option>
+    <option value="Green Card">Green Card Holder</option>
+    <option value="US Citizen">US Citizen</option>
+  </select>
+)}
+
+
+
+          {/* Resume Section */}
+          <div className="border rounded-lg p-4">
+            <label className="font-medium mb-2 block">Resume</label>
+
+            <div className="flex space-x-4 mb-4">
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-lg ${
+                  resumeMode === "upload"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+                onClick={() => setResumeMode("upload")}
+              >
+                Upload
+              </button>
+
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-lg ${
+                  resumeMode === "paste"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+                onClick={() => setResumeMode("paste")}
+              >
+                Paste
+              </button>
+            </div>
+
+            {resumeMode === "upload" ? (
+              <input
+                type="file"
+                name="resumeFile"
+                accept=".pdf,.doc,.docx"
+                onChange={handleChange}
+                className="w-full border rounded-lg px-3 py-1"
+              />
+            ) : (
+              <textarea
+                name="resumeText"
+                placeholder="Paste resume text here..."
+                value={formData.resumeText}
+                onChange={handleChange}
+                className="w-full border rounded-lg px-3 py-2 min-h-[120px]"
+              />
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              type="button"
+              className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Save Candidate
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default RecruiterAddCandidateModal;

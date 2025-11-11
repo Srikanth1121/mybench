@@ -8,9 +8,7 @@ import SignupPage from "./pages/Signup/SignupPage";
 import CompanyAdminProfile from "./pages/CompanyAdmin/CompanyAdminProfile";
 import CompanyAdminDashboard from "./pages/CompanyAdmin/CompanyAdminDashboard";
 import RecruiterDashboard from "./pages/Recruiter/RecruiterDashboard"; // 👈 Add this import at the top
-
-
-
+import RecruiterMyCandidates from "./pages/Recruiter/RecruiterMyCandidates";
 
 
 function App() {
@@ -57,7 +55,10 @@ function App() {
       <RecruiterDashboard />
     </ProtectedRoute>
   }
-/>
+>
+  <Route path="my-candidates" element={<RecruiterMyCandidates />} />
+</Route>
+
 
 
 

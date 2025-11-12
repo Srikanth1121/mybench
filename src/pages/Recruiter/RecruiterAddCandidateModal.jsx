@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { db, storage } from "../../firebase/config";
-import { collection, addDoc, serverTimestamp, getDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, getDoc, doc, updateDoc, query, where, getDocs } from "firebase/firestore";
+
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth } from "firebase/auth";////
 import Select from "react-select";
-import { indiaStates, usaStates, visaOptions } from "../../constants/Data";
-
-
-
-
+import { indiaStates, usaStates, visaOptions } from "../../constants/Data";//////////
 const RecruiterAddCandidateModal = ({ show, onClose, editingCandidate }) => {
 
   if (!show) return null;
@@ -133,9 +130,46 @@ if (!validStates.includes(formData.state)) {
   try {
     const user = auth.currentUser;
     if (!user) {
-      alert("User not authenticated.");
+      alert("User not authenticated.");////
       return;
     }
+// ✅ Check if candidate with same email already exists
+// ✅ Normalize and check duplicate email (case-insensitive)
+// ✅ Normalize and check duplicate email (handles old + new candidates)
+// ✅ Normalize email and mobile for duplicate checking
+const normalizedEmail = formData.email.trim().toLowerCase();
+const normalizedMobile = formData.mobile.replace(/\D/g, ""); // digits only
+
+// Query 1: check normalizedEmail
+const q1 = query(
+  collection(db, "candidates"),
+  where("normalizedEmail", "==", normalizedEmail)
+);
+const snap1 = await getDocs(q1);
+
+// Query 2: check plain email (old entries)
+const q2 = query(
+  collection(db, "candidates"),
+  where("email", "==", formData.email.trim())
+);
+const snap2 = await getDocs(q2);
+
+// Query 3: check mobile (normalize to digits)
+// Query 3: check normalizedMobile field (digits only)
+const q3 = query(
+  collection(db, "candidates"),
+  where("normalizedMobile", "==", normalizedMobile)
+);
+const snap3 = await getDocs(q3);
+
+
+// Combine all results
+if (!editingCandidate && (!snap1.empty || !snap2.empty || !snap3.empty)) {
+  alert("❌ A candidate with this email or mobile number already exists.");
+  return;
+}
+
+
 
     let parsedResumeText = "";
 
@@ -170,6 +204,8 @@ const candidateData = {
   fullName: formData.fullName.trim(),
   email: formData.email.trim(),
   mobile: formData.mobile.trim(),
+normalizedMobile: formData.mobile.replace(/\D/g, ""), // store digits-only version
+
   country: recruiterCountry, // 👈 auto-filled, no user selection
   visaType: recruiterCountry === "USA" ? formData.visaType : null,
   experience: formData.experience.trim(),
@@ -181,6 +217,9 @@ const candidateData = {
   linkedin: formData.linkedin.trim(),
   resumeType: formData.resumeFile ? "upload" : "paste",
   resumeText: parsedResumeText,
+  status: "Active",
+  normalizedEmail: formData.email.trim().toLowerCase(),
+  normalizedMobile: formData.mobile.replace(/\D/g, ""),
   createdAt: serverTimestamp(),
 };
 
@@ -302,14 +341,23 @@ return (
           {/* Total Experience & Job Title */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
-              type="text"
-              name="experience"
-              placeholder="Total Work Experience (e.g., 5 years)"
-              value={formData.experience}
-              onChange={handleChange}
-              className="w-full border rounded-lg px-3 py-1"
-              required
-            />
+  type="number"
+  name="experience"
+  placeholder="Total Experience (in years)"
+  value={formData.experience}
+  onChange={(e) => {
+    const value = e.target.value;
+    // Only allow numbers 0–99
+    if (/^\d{0,2}$/.test(value)) {
+      setFormData((prev) => ({ ...prev, experience: value }));
+    }
+  }}
+  min="0"
+  max="50"
+  className="w-full border rounded-lg px-3 py-1"
+  required
+/>
+
 
             <input
               type="text"

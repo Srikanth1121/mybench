@@ -9,6 +9,8 @@ import CompanyAdminProfile from "./pages/CompanyAdmin/CompanyAdminProfile";
 import CompanyAdminDashboard from "./pages/CompanyAdmin/CompanyAdminDashboard";
 import RecruiterDashboard from "./pages/Recruiter/RecruiterDashboard"; // 👈 Add this import at the top
 import RecruiterMyCandidates from "./pages/Recruiter/RecruiterMyCandidates";
+import RecruiterAllCandidates from "./pages/Recruiter/RecruiterAllCandidates";
+
 
 
 function App() {
@@ -59,12 +61,18 @@ function App() {
   <Route path="my-candidates" element={<RecruiterMyCandidates />} />
 </Route>
 
-
-
-
-
-
-        {/* Temporarily keep Unauthorized route (for now) */}
+<Route
+  path="/recruiter/dashboard/*"
+  element={
+    <ProtectedRoute allowedRole="recruiter">
+      <RecruiterDashboard />
+    </ProtectedRoute>
+  }
+>
+  <Route path="my-candidates" element={<RecruiterMyCandidates />} />
+  <Route path="all-candidates" element={<RecruiterAllCandidates />} />  {/* ✅ new route */}
+</Route>
+{/* Temporarily keep Unauthorized route (for now) */}
         {/* Once final testing done, we will delete this */}
         {/* <Route path="/unauthorized" element={<Unauthorized />} /> */}
       </Routes>

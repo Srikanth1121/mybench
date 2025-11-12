@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import RecruiterAddCandidateModal from "./RecruiterAddCandidateModal";
 import { db } from "../../firebase/config";
-import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { Pencil, Trash2 } from "lucide-react";
-import { indiaStates, usaStates, visaOptions } from "../../constants/Data";
+import { indiaStates, usaStates, visaOptions } from "../../constants/Data";//////
 
 const RecruiterMyCandidates = () => {
   const [showModal, setShowModal] = useState(false);
@@ -24,7 +24,8 @@ const candidatesPerPage = 10;
   const [stateQuery, setStateQuery] = useState("");
   const [visaQuery, setVisaQuery] = useState("");
   const [jobTitleQuery, setJobTitleQuery] = useState("");
-  const [recruiterCountry, setRecruiterCountry] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("All");
+const [recruiterCountry, setRecruiterCountry] = useState(null);
 // 🔹 Derived filters
   const filteredStates = (recruiterCountry === "USA" ? usaStates : indiaStates).filter((s) =>
     s.toLowerCase().includes(stateQuery.toLowerCase())
@@ -132,6 +133,24 @@ const handleDelete = async (id, name) => {
     }
   }
 };
+// ✅ Update candidate availability (Active / Inactive)
+const handleStatusChange = async (candidateId, newStatus) => {
+  const confirmChange = window.confirm(
+    `Are you sure you want to mark this candidate as "${newStatus}"?`
+  );
+  if (!confirmChange) return;
+
+  try {
+    const candidateRef = doc(db, "candidates", candidateId);
+    await updateDoc(candidateRef, { status: newStatus });
+    // ✅ Removed success alert
+  } catch (error) {
+    console.error("Error updating status:", error);
+    alert("❌ Failed to update status. Please try again.");
+  }
+};
+
+
 // ✅ Pagination Logic (show 10 candidates per page)
 // ✅ Apply Advanced Filters (client-side before pagination)
 const filteredCandidates = candidates.filter((cand) => {
@@ -159,10 +178,11 @@ const filteredCandidates = candidates.filter((cand) => {
   const matchJob = jobTitleQuery
     ? cand.jobTitle?.toLowerCase().includes(jobTitleQuery.toLowerCase())
     : true;
+const matchStatus =
+  statusFilter === "All" ? true : cand.status === statusFilter;
 
-  return matchExp && matchState && matchVisa && matchJob;
+  return matchExp && matchState && matchVisa && matchJob && matchStatus;
 });
-
 const indexOfLastCandidate = currentPage * candidatesPerPage;
 const indexOfFirstCandidate = indexOfLastCandidate - candidatesPerPage;
 const currentCandidates = filteredCandidates.slice(indexOfFirstCandidate, indexOfLastCandidate);
@@ -258,6 +278,19 @@ const totalPages = Math.ceil(filteredCandidates.length / candidatesPerPage);
       className="w-48 border border-gray-300 rounded-lg p-2 text-sm"
     />
   </div>
+{/* Availability Filter */}
+<div className="flex flex-col">
+  <label className="text-sm font-medium text-gray-600 mb-1">Availability</label>
+  <select
+    value={statusFilter}
+    onChange={(e) => setStatusFilter(e.target.value)}
+    className="w-36 border border-gray-300 rounded-lg p-2 text-sm"
+  >
+    <option value="All">All</option>
+    <option value="Active">Active</option>
+    <option value="Inactive">Inactive</option>
+  </select>
+</div>
 
   {/* Buttons */}
   <div className="flex gap-2 ml-auto">
@@ -294,16 +327,14 @@ const totalPages = Math.ceil(filteredCandidates.length / candidatesPerPage);
     <th className="px-3 py-1 border border-gray-300">Mobile</th>
     <th className="px-3 py-1 border border-gray-300">Experience</th>
     <th className="px-3 py-1 border border-gray-300">Job Title</th>
-    <th className="px-3 py-1 border border-gray-300">City</th>
     <th className="px-3 py-1 border border-gray-300">State</th>
-
-    {/* ✅ Visa Type column visible only for USA recruiters */}
+{/* ✅ Visa Type column visible only for USA recruiters */}
     {recruiterCountry === "USA" && (
       <th className="px-3 py-1 border border-gray-300">Visa Type</th>
     )}
-<th className="px-3 py-1 border border-gray-300">Qualification</th>
-    <th className="px-3 py-1 border border-gray-300">Gender</th>
     <th className="px-3 py-1 border border-gray-300 text-center">LinkedIn</th>
+    <th className="px-3 py-1 border border-gray-300 text-center">Availability</th>
+
     <th className="px-3 py-1 border border-gray-300 text-center">Edit / Delete</th>
   </tr>
 </thead>
@@ -322,7 +353,6 @@ const totalPages = Math.ceil(filteredCandidates.length / candidatesPerPage);
                   <td className="px-3 py-1 border border-gray-300 whitespace-nowrap">{candidate.mobile}</td>
                   <td className="px-3 py-1 border border-gray-300">{candidate.experience}</td>
                   <td className="px-3 py-1 border border-gray-300">{candidate.jobTitle}</td>
-                  <td className="px-3 py-1 border border-gray-300">{candidate.city}</td>
                   <td className="px-3 py-1 border border-gray-300">{candidate.state}</td>
                   {/* 👇 Visa Type only for USA recruiters */}
 {recruiterCountry === "USA" && (
@@ -330,10 +360,6 @@ const totalPages = Math.ceil(filteredCandidates.length / candidatesPerPage);
     {candidate.visaType || "-"}
   </td>
 )}
-
-                  <td className="px-3 py-1 border border-gray-300">{candidate.qualification}</td>
-                  <td className="px-3 py-1 border border-gray-300 capitalize">{candidate.gender}</td>
-
                   {/* ✅ LinkedIn Column (Clickable Icon) */}
                   {/* ✅ LinkedIn Column (Text Link instead of Icon) */}
 <td className="px-3 py-1 border border-gray-300 text-center">
@@ -349,6 +375,23 @@ const totalPages = Math.ceil(filteredCandidates.length / candidatesPerPage);
   ) : (
     "-"
   )}
+</td>
+{/* ✅ Availability Dropdown */}
+<td className="px-3 py-1 border border-gray-300 text-center">
+  <select
+    value={candidate.status || "Active"}
+    onChange={(e) =>
+      handleStatusChange(candidate.id, e.target.value)
+    }
+    className={`border rounded-md px-2 py-1 text-sm ${
+      candidate.status === "Active"
+        ? "bg-green-200 text-green-700 border-green-900"
+        : "bg-gray-200 text-gray-600 border-gray-300"
+    }`}
+  >
+    <option value="Active">Active</option>
+    <option value="Inactive">Inactive</option>
+  </select>
 </td>
 
 

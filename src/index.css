@@ -44,8 +44,6 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  /* ⚠️ Removed display:flex and place-items:center 
-     so content can stretch full width */
 }
 
 /* --- HEADINGS --- */
@@ -87,7 +85,8 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
-/* --- FADE ANIMATION FOR JOB LIST --- */
+
+/* --- FADE ANIMATION FOR JOB LIST (KEEP THIS) --- */
 @keyframes fade {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -95,4 +94,24 @@ button:focus-visible {
 
 .animate-fade {
   animation: fade 0.25s ease-in-out;
+}
+
+/* --- SLIDE-UP COUNTER ANIMATION (KEEP THIS) --- */
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-5%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.6s ease-in-out;
 }

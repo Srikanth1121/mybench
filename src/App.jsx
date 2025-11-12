@@ -10,9 +10,7 @@ import CompanyAdminDashboard from "./pages/CompanyAdmin/CompanyAdminDashboard";
 import RecruiterDashboard from "./pages/Recruiter/RecruiterDashboard"; // 👈 Add this import at the top
 import RecruiterMyCandidates from "./pages/Recruiter/RecruiterMyCandidates";
 import RecruiterAllCandidates from "./pages/Recruiter/RecruiterAllCandidates";
-
-
-
+import PublicAllCandidates from "./pages/Public/PublicAllCandidates";
 function App() {
   return (
     <BrowserRouter>
@@ -60,7 +58,7 @@ function App() {
 >
   <Route path="my-candidates" element={<RecruiterMyCandidates />} />
 </Route>
-
+<Route path="/candidates" element={<PublicAllCandidates />} />
 <Route
   path="/recruiter/dashboard/*"
   element={

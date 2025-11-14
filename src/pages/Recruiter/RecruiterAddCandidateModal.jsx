@@ -219,7 +219,6 @@ normalizedMobile: formData.mobile.replace(/\D/g, ""), // store digits-only versi
   resumeText: parsedResumeText,
   status: "Active",
   normalizedEmail: formData.email.trim().toLowerCase(),
-  normalizedMobile: formData.mobile.replace(/\D/g, ""),
   createdAt: serverTimestamp(),
 };
 

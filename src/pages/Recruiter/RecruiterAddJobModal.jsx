@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
-
 import { db } from "../../firebase/config";
 import {
   collection,
   addDoc,
   updateDoc,
   doc,
+  runTransaction,
+  getDoc,
+  setDoc,
   serverTimestamp
 } from "firebase/firestore";
+
 
 
 const RecruiterAddJobModal = ({ recruiterId, recruiterCountry, onClose, existingData }) => {
@@ -64,6 +67,50 @@ useEffect(() => {
       [name]: type === "checkbox" ? checked : value,
     });
   };
+  // Ensure the counter document exists (created by code) — STEP 1
+const ensureJobCounterExists = async () => {
+  try {
+    const counterRef = doc(db, "counters", "jobCounter");
+    const snap = await getDoc(counterRef);
+
+    if (!snap.exists()) {
+      // Initialize to 1 so first created job will be #1 (and next will be 2)
+      await setDoc(counterRef, { lastJobId: 1 });
+      console.log("Initialized counters/jobCounter with lastJobId: 1");
+    } else {
+      console.log("counters/jobCounter already exists:", snap.data());
+    }
+  } catch (err) {
+    console.error("Failed to ensure jobCounter exists:", err);
+  }
+};
+
+// Call once when modal mounts
+useEffect(() => {
+  ensureJobCounterExists();
+}, []);
+
+// Generate unique never-reused Job ID
+const generateJobId = async () => {
+  const counterRef = doc(db, "counters", "jobCounter");
+
+  return await runTransaction(db, async (transaction) => {
+    const counterSnap = await transaction.get(counterRef);
+
+    // If counter doc doesn't exist, create it
+    if (!counterSnap.exists()) {
+      transaction.set(counterRef, { lastJobId: 0 });
+      return 1; // First job ID
+    }
+
+    const lastId = counterSnap.data().lastJobId || 0;
+    const newId = lastId + 1;
+
+    transaction.update(counterRef, { lastJobId: newId });
+
+    return newId;
+  });
+};
 
   const handleSubmit = async (e) => {
   e.preventDefault();
@@ -79,12 +126,17 @@ useEffect(() => {
       alert("Job updated successfully!");
     } else {
       // ⭐ ADD NEW JOB
-      await addDoc(collection(db, "jobs"), {
-        recruiterId,
-        country: recruiterCountry || "India",
-        ...jobData,
-        createdAt: serverTimestamp(),
-      });
+      // ⭐ ADD NEW JOB WITH UNIQUE JOB ID
+const newJobId = await generateJobId();   // 🎯 Get the next number (1, 2, 3, ...)
+
+await addDoc(collection(db, "jobs"), {
+  recruiterId,
+  country: recruiterCountry || "India",
+  jobId: newJobId,                        // 🎯 Save ID into Firestore
+  ...jobData,
+  createdAt: serverTimestamp(),
+});
+
 
       alert("Job added successfully!");
     }

@@ -53,13 +53,14 @@ const JobCard = ({ job, isRecruiter, onEdit, onDelete, onToggleStatus, onView })
           {jobTitle}
         </h2>
 
-        <div className="text-xs text-gray-500">
-          #{job.id?.slice(-6) || "JOB"}
-        </div>
+        <div className="text-xs text-gray-700">
+  #{job.jobId}
+</div>
+
       </div>
 
       {/* COMPANY + LOCATION */}
-      <div className="text-sm text-gray-600 mb-2">
+      <div className="text-sm text-gray-900 mb-2">
         {(hideCompany && !isRecruiter)
           ? "Confidential"
           : company || "—"}
@@ -68,7 +69,7 @@ const JobCard = ({ job, isRecruiter, onEdit, onDelete, onToggleStatus, onView })
       </div>
 
       {/* METADATA ROW */}
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 mb-3">
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-900 mb-3">
         {experience && <span>Experience: {experience}</span>}
         {qualification && <span>Qualification: {qualification}</span>}
         {workMode && <span>Mode: {workMode}</span>}
@@ -81,7 +82,7 @@ const JobCard = ({ job, isRecruiter, onEdit, onDelete, onToggleStatus, onView })
           {skillList.map((skill, i) => (
             <span
               key={i}
-              className="px-2 py-0.5 bg-gray-100 border border-gray-200 text-gray-700 text-xs rounded"
+              className="px-2 py-0.5 bg-gray-100 border border-gray-200 text-gray-900 text-xs rounded"
             >
               {skill}
             </span>

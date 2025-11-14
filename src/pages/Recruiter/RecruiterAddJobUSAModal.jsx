@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from "react";
 
 import { db } from "../../firebase/config";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { doc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  runTransaction,
+  getDoc,
+  setDoc,
+  serverTimestamp
+} from "firebase/firestore";
+
 
 
 const RecruiterAddJobUSAModal = ({ recruiterId, recruiterCountry, onClose, existingData }) => {
 
   const [jobData, setJobData] = useState({
-    clientName: "",
-    hideClient: false,
+   company: "",
+    hideCompany: false,
     jobTitle: "",
     jobLocation: "",
     experience: "",
@@ -30,9 +39,9 @@ useEffect(() => {
   if (!existingData) return;
 
   setJobData({
-    clientName: existingData.clientName ?? "",
-    hideClient: existingData.hideClient ?? false,
-    jobTitle: existingData.jobTitle ?? "",
+    company: existingData.company ?? "",
+hideCompany: existingData.hideCompany ?? false,
+jobTitle: existingData.jobTitle ?? "",
     jobLocation: existingData.jobLocation ?? "",
     experience: existingData.experience ?? "",
     payRate: existingData.payRate ?? "",
@@ -58,6 +67,52 @@ useEffect(() => {
       [name]: type === "checkbox" ? checked : value,
     });
   };
+// -------------------------------------------------------------
+// STEP 2 — Ensure Global Job Counter Exists (USA modal)
+// -------------------------------------------------------------
+const ensureJobCounterExists = async () => {
+  try {
+    const counterRef = doc(db, "counters", "jobCounter");
+    const snap = await getDoc(counterRef);
+
+    if (!snap.exists()) {
+      await setDoc(counterRef, { lastJobId: 1 });
+      console.log("Initialized counters/jobCounter for USA jobs");
+    } else {
+      console.log("USA: Counter exists:", snap.data());
+    }
+  } catch (err) {
+    console.error("Failed to ensure jobCounter exists:", err);
+  }
+};
+
+useEffect(() => {
+  ensureJobCounterExists();
+}, []);
+
+
+// -------------------------------------------------------------
+// Generate Unique Global Job ID (shared for India + USA)
+// -------------------------------------------------------------
+const generateJobId = async () => {
+  const counterRef = doc(db, "counters", "jobCounter");
+
+  return await runTransaction(db, async (transaction) => {
+    const counterSnap = await transaction.get(counterRef);
+
+    if (!counterSnap.exists()) {
+      transaction.set(counterRef, { lastJobId: 1 });
+      return 1;
+    }
+
+    const lastId = counterSnap.data().lastJobId ?? 1;
+    const newId = lastId + 1;
+
+    transaction.update(counterRef, { lastJobId: newId });
+
+    return newId;
+  });
+};
 
  const handleSubmit = async (e) => {
   e.preventDefault();
@@ -71,17 +126,21 @@ useEffect(() => {
       });
 
       alert("Job Updated Successfully!");
-    } else {
-      // ⭐ ADD NEW JOB
-      await addDoc(collection(db, "jobs"), {
-        recruiterId,
-        country: recruiterCountry,
-        ...jobData,
-        createdAt: serverTimestamp(),
-      });
+  } else {
+  // ⭐ ADD NEW JOB WITH GLOBAL UNIQUE JOB ID
+  const newJobId = await generateJobId();
 
-      alert("USA Job Posted Successfully!");
-    }
+  await addDoc(collection(db, "jobs"), {
+    recruiterId,
+    country: recruiterCountry,
+    jobId: newJobId,           // ⭐ Save Job ID
+    ...jobData,
+    createdAt: serverTimestamp(),
+  });
+
+  alert("USA Job Posted Successfully!");
+}
+
 
     onClose();
   } catch (err) {
@@ -115,20 +174,22 @@ useEffect(() => {
 
             {/* Client Name */}
             <div className="col-span-2">
-              <label className="font-medium">Client / End Client</label>
-              <input
-                type="text"
-                name="clientName"
-                value={jobData.clientName}
-                onChange={handleChange}
+             <label className="font-medium">Company</label>
+<input
+  type="text"
+  name="company"
+  value={jobData.company}
+  onChange={handleChange}
+
                 className="w-full border p-2 rounded mt-1"
               />
 
               <label className="flex items-center gap-2 mt-1 text-sm">
                 <input
                   type="checkbox"
-                  name="hideClient"
-                  checked={jobData.hideClient}
+                  name="hideCompany"
+checked={jobData.hideCompany}
+
                   onChange={handleChange}
                 />
                 Don’t show client name to candidates

@@ -33,6 +33,8 @@ const RecruiterAddJobUSAModal = ({ recruiterId, recruiterCountry, onClose, exist
     referralFee: false,
     referralDetails: "",
     jobDescription: "",
+    status: "Active",
+    
   });
 // ⭐ PREFILL FORM WHEN EDITING
 useEffect(() => {
@@ -57,7 +59,8 @@ jobTitle: existingData.jobTitle ?? "",
     referralFee: existingData.referralFee ?? false,
     referralDetails: existingData.referralDetails ?? "",
     jobDescription: existingData.jobDescription ?? "",
-  });
+    status: existingData.status ?? "Active",
+});
 }, [existingData]);
 
   const handleChange = (e) => {
@@ -122,25 +125,26 @@ const generateJobId = async () => {
       // ⭐ UPDATE EXISTING JOB
       await updateDoc(doc(db, "jobs", existingData.id), {
         ...jobData,
+        status: jobData.status || "Active",
         updatedAt: serverTimestamp(),
       });
 
       alert("Job Updated Successfully!");
-  } else {
-  // ⭐ ADD NEW JOB WITH GLOBAL UNIQUE JOB ID
-  const newJobId = await generateJobId();
+    } else {
+      // ⭐ ADD NEW JOB
+      const newJobId = await generateJobId();
 
-  await addDoc(collection(db, "jobs"), {
-    recruiterId,
-    country: recruiterCountry,
-    jobId: newJobId,           // ⭐ Save Job ID
-    ...jobData,
-    createdAt: serverTimestamp(),
-  });
+      await addDoc(collection(db, "jobs"), {
+        recruiterId,
+        country: recruiterCountry,
+        jobId: newJobId,
+        ...jobData,
+        status: "Active", // Always Active when created
+        createdAt: serverTimestamp(),
+      });
 
-  alert("USA Job Posted Successfully!");
-}
-
+      alert("USA Job Posted Successfully!");
+    }
 
     onClose();
   } catch (err) {

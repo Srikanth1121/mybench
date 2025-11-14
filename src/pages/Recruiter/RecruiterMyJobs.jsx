@@ -61,9 +61,10 @@ const JobCard = ({ job, isRecruiter, onEdit, onDelete, onToggleStatus, onView })
 
       {/* COMPANY + LOCATION */}
       <div className="text-sm text-gray-900 mb-2">
-        {(hideCompany && !isRecruiter)
-          ? "Confidential"
-          : company || "—"}
+       {(hideCompany && !isRecruiter)
+  ? "Confidential"
+  : company || job.clientName || "—"}
+
         {" "}•{" "}
         {jobLocation || "Location N/A"}
       </div>

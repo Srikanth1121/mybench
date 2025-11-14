@@ -6,12 +6,15 @@ import RecruiterInfoModal from "./RecruiterInfoModal"; // ✅ import modal
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
+import { RecruiterContext } from "../../context/RecruiterContext";
 
 
 
 export default function RecruiterDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [recruiterData, setRecruiterData] = useState(null);
+
   const auth = getAuth();
 
   useEffect(() => {
@@ -21,16 +24,21 @@ export default function RecruiterDashboard() {
           const userRef = doc(db, "users", user.uid); // 🔁 change to "recruiters" if that’s your collection
           const userSnap = await getDoc(userRef);
 
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-            // show modal if mandatory fields are missing
-            if (!data.profileComplete || !data.state || !data.linkedin) {
-              setShowModal(true);
-            }
-          } else {
-            // no Firestore record yet
-            setShowModal(true);
-          }
+       if (userSnap.exists()) {
+  const data = userSnap.data();
+
+  // ⭐ Save recruiter data (including uid) into state
+  setRecruiterData({
+    ...data,
+    id: user.uid, // add recruiter UID
+  });
+
+  // Check incomplete profile
+  if (!data.profileComplete || !data.state || !data.linkedin) {
+    setShowModal(true);
+  }
+}
+
         } catch (error) {
           console.error("Error fetching recruiter profile:", error);
         }
@@ -49,8 +57,10 @@ export default function RecruiterDashboard() {
     );
   }
 
-  return (
+return (
+  <RecruiterContext.Provider value={recruiterData}>
     <div className="min-h-screen bg-gray-50">
+
       <RecruiterNavBar />
 
       {/* Main content */}
@@ -63,5 +73,6 @@ export default function RecruiterDashboard() {
       {/* Info Modal appears if profile incomplete */}
       <RecruiterInfoModal show={showModal} onClose={() => setShowModal(false)} />
     </div>
+     </RecruiterContext.Provider>
   );
 }

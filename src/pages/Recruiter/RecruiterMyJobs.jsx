@@ -1,0 +1,281 @@
+import React, { useEffect, useState, useContext } from "react";
+import { db } from "../../firebase/config";
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import RecruiterAddJobModal from "./RecruiterAddJobModal";
+import RecruiterAddJobUSAModal from "./RecruiterAddJobUSAModal";
+import { RecruiterContext } from "../../context/RecruiterContext";
+import { doc, deleteDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+
+
+
+/* ------------------------------------------------------------------
+   JOB CARD COMPONENT
+-------------------------------------------------------------------*/
+/* ------------------------------------------------------------------
+   POSH | PREMIUM | ENTERPRISE JOB CARD
+   Clean, minimal, corporate professional UI
+-------------------------------------------------------------------*/
+const JobCard = ({ job, isRecruiter, onEdit, onDelete, onToggleStatus, onView }) => {
+  const {
+    jobTitle,
+    jobLocation,
+    company,
+    hideCompany,
+    experience,
+    qualification,
+    salaryAmount,
+    salaryType,
+    skills,
+    workMode,
+    jobType,
+    c2cAllowed,
+    referralFee,
+    referralDetails,
+  } = job;
+
+  const skillList = Array.isArray(skills)
+    ? skills
+    : skills?.split(",").map((s) => s.trim());
+
+  const borderColor =
+    job.status === "Active" ? "border-gray-300" : "border-gray-200";
+
+  return (
+    <div
+      className={`bg-white border ${borderColor} rounded-lg px-5 py-4 mb-4 hover:shadow-sm transition-all`}
+    >
+      {/* TOP ROW — Title + Job Code */}
+      <div className="flex justify-between items-start mb-1">
+        <h2
+          onClick={() => onView(job)}
+          className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-700"
+        >
+          {jobTitle}
+        </h2>
+
+        <div className="text-xs text-gray-500">
+          #{job.id?.slice(-6) || "JOB"}
+        </div>
+      </div>
+
+      {/* COMPANY + LOCATION */}
+      <div className="text-sm text-gray-600 mb-2">
+        {(hideCompany && !isRecruiter)
+          ? "Confidential"
+          : company || "—"}
+        {" "}•{" "}
+        {jobLocation || "Location N/A"}
+      </div>
+
+      {/* METADATA ROW */}
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 mb-3">
+        {experience && <span>Experience: {experience}</span>}
+        {qualification && <span>Qualification: {qualification}</span>}
+        {workMode && <span>Mode: {workMode}</span>}
+        {jobType && <span>Type: {jobType}</span>}
+      </div>
+
+      {/* SKILLS */}
+      {skillList?.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {skillList.map((skill, i) => (
+            <span
+              key={i}
+              className="px-2 py-0.5 bg-gray-100 border border-gray-200 text-gray-700 text-xs rounded"
+            >
+              {skill}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* REFERRAL */}
+      {referralFee && (
+        <div className="text-xs text-green-700 mb-4">
+          Referral: {referralDetails || "Available"}
+        </div>
+      )}
+
+      <div className="h-px bg-gray-200 my-3"></div>
+
+      {/* ACTION ROW */}
+      <div className="flex justify-between items-center">
+
+        {/* LEFT: Edit & Delete */}
+        <div className="flex gap-4">
+          <button
+            onClick={() => onEdit(job)}
+            className="text-sm text-gray-700 hover:text-blue-700"
+          >
+            Edit
+          </button>
+
+          <button
+            onClick={() => onDelete(job)}
+            className="text-sm text-gray-700 hover:text-red-600"
+          >
+            Delete
+          </button>
+        </div>
+
+        {/* RIGHT: Status Toggle */}
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          {job.status === "Active" ? "Active" : "Closed"}
+
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={job.status === "Active"}
+              onChange={() => onToggleStatus(job)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-all"></div>
+            <div className="absolute left-1 top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all peer-checked:translate-x-4"></div>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------
+      MAIN PAGE COMPONENT — Recruiter My Jobs
+-------------------------------------------------------------------*/
+const RecruiterMyJobs = () => {
+  const [jobs, setJobs] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editJob, setEditJob] = useState(null); // ⭐ Stores job for editing
+  const [viewJob, setViewJob] = useState(null); // ⭐ Stores job for viewing
+
+
+  const recruiter = useContext(RecruiterContext);
+
+  if (!recruiter) {
+    return <div className="p-6">Loading recruiter data...</div>;
+  }
+
+  const recruiterId = recruiter.id;
+  const recruiterCountry = recruiter.country;
+
+  /* FETCH JOBS */
+  useEffect(() => {
+    if (!recruiterId) return;
+
+    const q = query(
+      collection(db, "jobs"),
+      where("recruiterId", "==", recruiterId),
+      where("country", "==", recruiterCountry),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetched = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setJobs(fetched);
+    });
+
+    return () => unsubscribe();
+  }, [recruiterId, recruiterCountry]);
+/* DELETE HANDLER */
+const onDeleteJob = async (job) => {
+  const confirmDelete = window.confirm("Are you sure you want to delete this job?");
+  if (!confirmDelete) return;
+
+  try {
+    await deleteDoc(doc(db, "jobs", job.id));
+    alert("Job deleted successfully.");
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Failed to delete job.");
+  }
+};
+/* STATUS TOGGLE HANDLER */
+const onToggleStatus = async (job) => {
+  const newStatus = job.status === "Active" ? "Closed" : "Active";
+
+  try {
+    await updateDoc(doc(db, "jobs", job.id), {
+      status: newStatus,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("Status update failed:", err);
+    alert("Failed to update job status.");
+  }
+};
+/* ⭐ VIEW HANDLER */
+const onViewJob = (job) => {
+  setViewJob(job);   // Open view modal
+};
+
+  /* ⭐ EDIT HANDLER */
+  const onEditJob = (job) => {
+    setEditJob(job);        // Set existing job data for modal
+    setShowModal(true);     // Open modal
+  };
+
+  /* ⭐ ADD HANDLER */
+  const onAddJob = () => {
+    setEditJob(null);       // When adding, clear previous edit data
+    setShowModal(true);
+  };
+
+  return (
+    <div className="p-6">
+      {/* Page Header */}
+      <div className="flex justify-between mb-4">
+        <h2 className="text-xl font-semibold">My Jobs</h2>
+
+        <button
+          onClick={onAddJob}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          + Add Job ({recruiterCountry})
+        </button>
+      </div>
+
+      {/* Job List */}
+      {jobs.length === 0 ? (
+        <p>No jobs posted yet.</p>
+      ) : (
+        jobs.map((job) => (
+          <JobCard
+            key={job.id}
+            job={job}
+            isRecruiter={true}
+            onEdit={onEditJob} 
+            onDelete={onDeleteJob}
+            onToggleStatus={onToggleStatus}
+            onView={onViewJob}  // ⭐ Pass edit handler
+          />
+        ))
+      )}
+{/* ADD or EDIT Modal — India or USA */}
+      {showModal && (
+        <>
+          {recruiterCountry === "India" && (
+            <RecruiterAddJobModal
+              recruiterId={recruiterId}
+              recruiterCountry={recruiterCountry}
+              existingData={editJob}     // ⭐ Prefill data if editing
+              onClose={() => setShowModal(false)}
+            />
+          )}
+
+          {recruiterCountry === "USA" && (
+            <RecruiterAddJobUSAModal
+              recruiterId={recruiterId}
+              recruiterCountry={recruiterCountry}
+              existingData={editJob}     // ⭐ Prefill data if editing
+              onClose={() => setShowModal(false)}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+export default RecruiterMyJobs;

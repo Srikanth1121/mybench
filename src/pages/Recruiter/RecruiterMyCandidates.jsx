@@ -142,13 +142,19 @@ const handleStatusChange = async (candidateId, newStatus) => {
 
   try {
     const candidateRef = doc(db, "candidates", candidateId);
-    await updateDoc(candidateRef, { status: newStatus });
-    // ✅ Removed success alert
+
+    // 🔥 Force consistent casing
+    const normalized =
+      newStatus.trim().toLowerCase() === "active" ? "Active" : "Inactive";
+
+    await updateDoc(candidateRef, { status: normalized });
+
   } catch (error) {
     console.error("Error updating status:", error);
     alert("❌ Failed to update status. Please try again.");
   }
 };
+
 
 
 // ✅ Pagination Logic (show 10 candidates per page)
@@ -384,9 +390,10 @@ const totalPages = Math.ceil(filteredCandidates.length / candidatesPerPage);
       handleStatusChange(candidate.id, e.target.value)
     }
     className={`border rounded-md px-2 py-1 text-sm ${
-      candidate.status === "Active"
-        ? "bg-green-200 text-green-700 border-green-900"
-        : "bg-gray-200 text-gray-600 border-gray-300"
+      candidate.status?.toLowerCase().trim() === "active"
+  ? "bg-green-200 text-green-700 border-green-900"
+  : "bg-gray-200 text-gray-600 border-gray-300"
+
     }`}
   >
     <option value="Active">Active</option>

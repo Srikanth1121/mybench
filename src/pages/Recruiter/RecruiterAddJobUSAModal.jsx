@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { visaOptions } from "../../constants/Data";
 import { db } from "../../firebase/config";
+import { skillsList } from "../../constants/skills";
 import { indiaStates, usaStates } from "../../constants/Data";
 import {
   collection,
@@ -12,9 +13,6 @@ import {
   setDoc,
   serverTimestamp
 } from "firebase/firestore";
-
-
-
 const RecruiterAddJobUSAModal = ({ recruiterId, recruiterCountry, onClose, existingData }) => {
 
   const [jobData, setJobData] = useState({
@@ -35,8 +33,11 @@ const RecruiterAddJobUSAModal = ({ recruiterId, recruiterCountry, onClose, exist
     referralDetails: "",
     jobDescription: "",
     status: "Active",
-    
-  });
+    });
+
+    const [skillInput, setSkillInput] = useState("");
+const [skillSuggestions, setSkillSuggestions] = useState([]);
+
 // ⭐ PREFILL FORM WHEN EDITING
 useEffect(() => {
   if (!existingData) return;
@@ -291,17 +292,87 @@ checked={jobData.hideCompany}
             </div>
 
             {/* Skills */}
-            <div>
-              <label className="font-medium">Mandatory Skills</label>
-              <input
-                type="text"
-                name="skills"
-                value={jobData.skills}
-                onChange={handleChange}
-                className="w-full border p-2 rounded mt-1"
-                placeholder="Java, AWS, React"
-              />
-            </div>
+            <div className="col-span-2">
+  <label className="font-medium">Mandatory Skills</label>
+
+  {/* Input box */}
+  <input
+    type="text"
+    value={skillInput}
+    onChange={(e) => {
+      const value = e.target.value;
+      setSkillInput(value);
+
+      // Generate suggestions
+     if (value.trim().length > 0) {
+  const filtered = skillsList.filter(s =>
+    s.toLowerCase().startsWith(value.toLowerCase())
+  );
+  setSkillSuggestions(filtered);
+}
+else {
+        setSkillSuggestions([]);
+      }
+    }}
+    className="w-full border p-2 rounded mt-1"
+    placeholder="Type a skill..."
+  />
+
+  {/* Dropdown Suggestion Box */}
+  {skillSuggestions.length > 0 && (
+    <div className="border mt-1 bg-white rounded shadow p-2 max-h-40 overflow-y-auto">
+      {skillSuggestions.map((skill, i) => (
+        <div
+          key={i}
+          className="p-2 hover:bg-gray-100 cursor-pointer"
+          onClick={() => {
+            // Add selected skill to the jobData.skills list
+            const currentSkills = jobData.skills
+              ? jobData.skills.split(",").map(s => s.trim())
+              : [];
+
+            if (!currentSkills.includes(skill)) {
+              const updatedSkills = [...currentSkills, skill];
+              setJobData({ ...jobData, skills: updatedSkills.join(", ") });
+            }
+
+            setSkillInput("");
+            setSkillSuggestions([]);
+          }}
+        >
+          {skill}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
+{/* Selected Skill Tags */}
+{jobData.skills && jobData.skills.length > 0 && (
+  <div className="flex flex-wrap gap-2 mt-2">
+    {jobData.skills.split(",").map((skill, index) => (
+      <div
+        key={index}
+        className="flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+      >
+        {skill.trim()}
+        <button
+          type="button"
+          className="ml-2 text-red-500 font-bold"
+          onClick={() => {
+            const updated = jobData.skills
+              .split(",")
+              .map(s => s.trim())
+              .filter(s => s !== skill.trim());
+            setJobData({ ...jobData, skills: updated.join(", ") });
+          }}
+        >
+          ×
+        </button>
+      </div>
+    ))}
+  </div>
+)}
 
             {/* Work Mode */}
             <div>

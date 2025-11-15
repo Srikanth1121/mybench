@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { indiaStates, usaStates } from "../../constants/Data";
+import { skillsOptions } from "../../constants/skills";
 import { db } from "../../firebase/config";
 import {
   collection,
@@ -11,9 +12,6 @@ import {
   setDoc,
   serverTimestamp
 } from "firebase/firestore";
-
-
-
 const RecruiterAddJobModal = ({ recruiterId, recruiterCountry, onClose, existingData }) => {
 
   const [jobData, setJobData] = useState({
@@ -35,6 +33,12 @@ const RecruiterAddJobModal = ({ recruiterId, recruiterCountry, onClose, existing
     jobDescription: "", 
     status: "Active",// NEW FIELD
   });
+  const [skillInput, setSkillInput] = useState("");
+const [skillSuggestions, setSkillSuggestions] = useState([]);
+// Local skills array (tags)
+const [skillsListState, setSkillsListState] = useState([]);
+
+
 // ⭐ PREFILL FORM WHEN EDITING
 useEffect(() => {
   if (!existingData) return;
@@ -59,6 +63,12 @@ useEffect(() => {
     referralDetails: existingData.referralDetails ?? "",
     jobDescription: existingData.jobDescription ?? "",
   });
+ setSkillsListState(
+  Array.isArray(existingData?.skills)
+    ? existingData.skills
+    : (existingData?.skills || "").split(",").map(s => s.trim()).filter(s => s.length > 0)
+);
+
 }, [existingData]);
 
   const handleChange = (e) => {
@@ -120,9 +130,11 @@ const generateJobId = async () => {
     if (existingData && existingData.id) {
       // ⭐ UPDATE JOB
       await updateDoc(doc(db, "jobs", existingData.id), {
-        ...jobData,
-        updatedAt: serverTimestamp(),
-      });
+ ...jobData,
+skills: skillsListState,
+updatedAt: serverTimestamp(),
+
+});
 
       alert("Job updated successfully!");
     } else {
@@ -132,10 +144,13 @@ const newJobId = await generateJobId();   // 🎯 Get the next number (1, 2, 3, 
 
 await addDoc(collection(db, "jobs"), {
   recruiterId,
-  country: recruiterCountry || "India",
-  jobId: newJobId,                        // 🎯 Save ID into Firestore
+  country: recruiterCountry,
+  jobId: newJobId,
   ...jobData,
-  createdAt: serverTimestamp(),
+skills: skillsListState,
+status: "Active",
+createdAt: serverTimestamp(),
+
 });
 
 
@@ -313,14 +328,78 @@ await addDoc(collection(db, "jobs"), {
             {/* Skills */}
             <div>
               <label className="font-medium">Mandatory Skills</label>
-              <input
-                type="text"
-                name="skills"
-                value={jobData.skills}
-                onChange={handleChange}
-                className="w-full border p-2 rounded mt-1"
-                placeholder="React, Node.js"
-              />
+             <div>
+  <label className="font-medium">Skills</label>
+
+  {/* Tag Display */}
+  <div className="flex flex-wrap gap-2 mt-1 mb-2">
+    {skillsListState.map((skill, index) => (
+      <span
+        key={index}
+        className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs flex items-center gap-1"
+      >
+        {skill}
+        <button
+          type="button"
+          onClick={() =>
+            setSkillsListState(skillsListState.filter((_, i) => i !== index))
+          }
+          className="text-red-500 ml-1"
+        >
+          ×
+        </button>
+      </span>
+    ))}
+  </div>
+
+  {/* Input to add new skill */}
+  {/* Skills Autocomplete Input */}
+<input
+  type="text"
+  value={skillInput}
+  onChange={(e) => {
+    const value = e.target.value;
+    setSkillInput(value);
+
+    // Show suggestions
+    if (value.trim().length > 0) {
+      const filtered = skillsOptions.filter(s =>
+        s.toLowerCase().startsWith(value.toLowerCase())
+      );
+      setSkillSuggestions(filtered);
+    } else {
+      setSkillSuggestions([]);
+    }
+  }}
+  className="w-full border p-2 rounded mt-1"
+  placeholder="Type a skill..."
+/>
+
+{/* Suggestion Dropdown */}
+{skillSuggestions.length > 0 && (
+  <div className="border mt-1 bg-white rounded shadow p-2 max-h-40 overflow-y-auto">
+    {skillSuggestions.map((skill, i) => (
+      <div
+        key={i}
+        className="p-2 hover:bg-gray-100 cursor-pointer"
+        onClick={() => {
+          if (!skillsListState.includes(skill)) {
+            setSkillsListState([...skillsListState, skill]);
+          }
+
+          setSkillInput("");
+          setSkillSuggestions([]);
+        }}
+      >
+        {skill}
+      </div>
+    ))}
+  </div>
+)}
+
+</div>
+
+
             </div>
 
             {/* Work Mode */}

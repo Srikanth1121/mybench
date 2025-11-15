@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-
+import { visaOptions } from "../../constants/Data";
 import { db } from "../../firebase/config";
+import { indiaStates, usaStates } from "../../constants/Data";
 import {
   collection,
   addDoc,
@@ -214,17 +215,39 @@ checked={jobData.hideCompany}
             </div>
 
             {/* Job Location */}
-            <div>
-              <label className="font-medium">Job Location</label>
-              <input
-                type="text"
-                name="jobLocation"
-                value={jobData.jobLocation}
-                onChange={handleChange}
-                className="w-full border p-2 rounded mt-1"
-                required
-              />
-            </div>
+           {/* Job Location (dynamic: states for India/USA, fallback to free text) */}
+<div>
+  <label className="font-medium">Job Location</label>
+
+  {recruiterCountry === "India" || recruiterCountry === "USA" ? (
+    <select
+      name="jobLocation"
+      value={jobData.jobLocation}
+      onChange={handleChange}
+      className="w-full border p-2 rounded mt-1"
+      required
+    >
+      <option value="">{`Select ${recruiterCountry === "India" ? "State" : "State/Region"}`}</option>
+
+      {(recruiterCountry === "India" ? indiaStates : usaStates).map((s, i) => (
+        <option key={i} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
+  ) : (
+    // if recruiterCountry missing or other, keep a free-text input
+    <input
+      type="text"
+      name="jobLocation"
+      value={jobData.jobLocation}
+      onChange={handleChange}
+      className="w-full border p-2 rounded mt-1"
+      required
+    />
+  )}
+</div>
+
 
             {/* Experience */}
             <div>
@@ -316,24 +339,21 @@ checked={jobData.hideCompany}
             <div>
               <label className="font-medium">Visa Type</label>
               <select
-                name="visaType"
-                value={jobData.visaType}
-                onChange={handleChange}
-                className="w-full border p-2 rounded mt-1"
-                required
-              >
-                <option value="">Select Visa</option>
-                <option>Citizen</option>
-                <option>GC</option>
-                <option>GC EAD</option>
-                <option>H1B</option>
-                <option>H4 EAD</option>
-                <option>L2 EAD</option>
-                <option>TN Visa</option>
-                <option>OPT</option>
-                <option>CPT</option>
-                <option>Other</option>
-              </select>
+  name="visaType"
+  value={jobData.visaType}
+  onChange={handleChange}
+  className="w-full border p-2 rounded mt-1"
+  required
+>
+  <option value="">Select Visa</option>
+
+  {visaOptions.map((visa, index) => (
+    <option key={index} value={visa}>
+      {visa}
+    </option>
+  ))}
+</select>
+
             </div>
 
             {/* Referral Reward */}

@@ -87,3 +87,12 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+/* --- FADE ANIMATION FOR JOB LIST --- */
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade {
+  animation: fade 0.25s ease-in-out;
+}

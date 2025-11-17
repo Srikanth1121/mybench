@@ -56,7 +56,7 @@ export default function RecruiterDashboard() {
       </div>
     );
   }
-
+console.log("RECRUITER:", recruiterData);
 return (
   <RecruiterContext.Provider value={recruiterData}>
     <div className="min-h-screen bg-gray-50">

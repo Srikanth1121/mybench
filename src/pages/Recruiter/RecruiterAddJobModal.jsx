@@ -27,8 +27,8 @@ const RecruiterAddJobModal = ({ recruiterId, recruiterCountry, onClose, existing
   skills: "",
   workMode: "Remote",
   jobType: "FullTime",
-  c2cAllowed: "No",
-  referralFee: false,
+    c2cAllowed: false,
+referralFee: false,
   referralDetails: "",
   jobDescription: "",
   status: "Active", // NEW FIELD
@@ -60,8 +60,8 @@ useEffect(() => {
       : existingData.skills ?? "",
     workMode: existingData.workMode ?? "Remote",
     jobType: existingData.jobType ?? "FullTime",
-    c2cAllowed: existingData.c2cAllowed ?? "No",
-    referralFee: existingData.referralFee ?? false,
+    c2cAllowed: existingData.c2cAllowed ?? false,
+referralFee: existingData.referralFee ?? false,
     referralDetails: existingData.referralDetails ?? "",
     jobDescription: existingData.jobDescription ?? "",
      visibility: existingData.visibility ?? "both",
@@ -81,6 +81,11 @@ useEffect(() => {
       [name]: type === "checkbox" ? checked : value,
     });
   };
+  useEffect(() => {
+  if (jobData.jobType !== "Contract") {
+    setJobData(prev => ({ ...prev, c2cAllowed: false }));
+  }
+}, [jobData.jobType]);
   // Ensure the counter document exists (created by code) — STEP 1
 const ensureJobCounterExists = async () => {
   try {
@@ -484,20 +489,26 @@ createdAt: serverTimestamp(),
 </div>
 
             {/* C2C Allowed */}
-            {jobData.jobType === "Contract" && (
-              <div>
-                <label className="font-medium">C2C Allowed</label>
-                <select
-                  name="c2cAllowed"
-                  value={jobData.c2cAllowed}
-                  onChange={handleChange}
-                  className="w-full border p-2 rounded mt-1"
-                >
-                  <option>Yes</option>
-                  <option>No</option>
-                </select>
-              </div>
-            )}
+          {jobData.jobType === "Contract" && (
+  <div>
+    <label className="font-medium">C2C Allowed</label>
+    <select
+      name="c2cAllowed"
+      value={jobData.c2cAllowed ? "Yes" : "No"}
+      onChange={(e) =>
+        setJobData({
+          ...jobData,
+          c2cAllowed: e.target.value === "Yes",
+        })
+      }
+      className="w-full border p-2 rounded mt-1"
+    >
+      <option value="No">No</option>
+      <option value="Yes">Yes</option>
+    </select>
+  </div>
+)}
+
 
             {/* Referral Reward */}
             <div>

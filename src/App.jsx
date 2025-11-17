@@ -11,10 +11,8 @@ import RecruiterDashboard from "./pages/Recruiter/RecruiterDashboard"; // 👈 A
 import RecruiterMyCandidates from "./pages/Recruiter/RecruiterMyCandidates";
 import RecruiterAllCandidates from "./pages/Recruiter/RecruiterAllCandidates";
 import RecruiterMyJobs from "./pages/Recruiter/RecruiterMyJobs";
-import RecruiterAllJobs from "./pages/Recruiter/RecruiterAllJobs";
-
-
-
+import RecruiterAllJobsUSA from "./pages/Recruiter/RecruiterAllJobsUSA";
+import RecruiterAllJobsIndia from "./pages/Recruiter/RecruiterAllJobsIndia";
 
 function App() {
   return (
@@ -64,7 +62,10 @@ function App() {
   <Route path="my-candidates" element={<RecruiterMyCandidates />} />
   <Route path="all-candidates" element={<RecruiterAllCandidates />} />
   <Route path="my-jobs" element={<RecruiterMyJobs />} />     {/* ✅ NEW ROUTE */}
- <Route path="all-jobs" element={<RecruiterAllJobs />} />
+ <Route path="all-jobs" element={<RecruiterAllJobsUSA />} />
+ <Route path="all-jobs-india" element={<RecruiterAllJobsIndia />} />
+
+
 </Route>
 
 {/* Temporarily keep Unauthorized route (for now) */}

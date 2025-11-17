@@ -3,8 +3,12 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config"; // adjust path if needed
+import { useContext } from "react";
+import { RecruiterContext } from "../../context/RecruiterContext";
+
 
 export default function RecruiterNavBar() {
+  const recruiter = useContext(RecruiterContext);
   const [recruiterName, setRecruiterName] = useState("");
   const navigate = useNavigate();
   const auth = getAuth();
@@ -76,11 +80,14 @@ export default function RecruiterNavBar() {
             My Candidates
           </NavLink>
           <NavLink
-            to="/recruiter/dashboard/all-jobs"
-            className={({ isActive }) => (isActive ? activeLink : linkClass)}
-          >
-            All Jobs
-          </NavLink>
+  to={recruiter?.country === "India"
+        ? "/recruiter/dashboard/all-jobs-india"
+        : "/recruiter/dashboard/all-jobs"}
+  className={({ isActive }) => (isActive ? activeLink : linkClass)}
+>
+  All Jobs
+</NavLink>
+
           <NavLink
             to="/recruiter/dashboard/my-jobs"
             className={({ isActive }) => (isActive ? activeLink : linkClass)}

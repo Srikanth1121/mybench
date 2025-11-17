@@ -14,25 +14,27 @@ import {
 } from "firebase/firestore";
 const RecruiterAddJobModal = ({ recruiterId, recruiterCountry, onClose, existingData }) => {
 
-  const [jobData, setJobData] = useState({
-    company: "",
-    hideCompany: false,
-    jobTitle: "",
-    jobLocation: "",
-    experience: "",
-    salaryAmount: "",
-    salaryType: "Per Month",
-    qualification: "",
-    genderPreference: "Any",
-    skills: "",
-    workMode: "Remote",
-    jobType: "FullTime",
-    c2cAllowed: "No",
-    referralFee: false,
-    referralDetails: "",
-    jobDescription: "", 
-    status: "Active",// NEW FIELD
-  });
+ const [jobData, setJobData] = useState({
+  company: "",
+  hideCompany: false,
+  jobTitle: "",
+  jobLocation: "",
+  experience: "",
+  salaryAmount: "",
+  salaryType: "Per Month",
+  qualification: "",
+  genderPreference: "Any",
+  skills: "",
+  workMode: "Remote",
+  jobType: "FullTime",
+  c2cAllowed: "No",
+  referralFee: false,
+  referralDetails: "",
+  jobDescription: "",
+  status: "Active", // NEW FIELD
+  visibility: "both", // NEW: "candidates" | "recruiters" | "both"
+});
+
   const [skillInput, setSkillInput] = useState("");
 const [skillSuggestions, setSkillSuggestions] = useState([]);
 // Local skills array (tags)
@@ -62,6 +64,7 @@ useEffect(() => {
     referralFee: existingData.referralFee ?? false,
     referralDetails: existingData.referralDetails ?? "",
     jobDescription: existingData.jobDescription ?? "",
+     visibility: existingData.visibility ?? "both",
   });
  setSkillsListState(
   Array.isArray(existingData?.skills)
@@ -127,17 +130,21 @@ const generateJobId = async () => {
   e.preventDefault();
 
   try {
-    if (existingData && existingData.id) {
-      // ⭐ UPDATE JOB
-      await updateDoc(doc(db, "jobs", existingData.id), {
- ...jobData,
-skills: skillsListState,
-updatedAt: serverTimestamp(),
+if (existingData && existingData.id) {
+  // ⭐ UPDATE JOB (explicitly ensure important fields)
+  await updateDoc(doc(db, "jobs", existingData.id), {
+    ...jobData,
+    // ensure skills stored as array
+    skills: skillsListState,
+    // ensure visibility and status are never left undefined
+    visibility: jobData.visibility ?? "both",
+    status: jobData.status ?? "Active",
+    updatedAt: serverTimestamp(),
+  });
 
-});
-
-      alert("Job updated successfully!");
-    } else {
+  alert("Job updated successfully!");
+}
+ else {
       // ⭐ ADD NEW JOB
       // ⭐ ADD NEW JOB WITH UNIQUE JOB ID
 const newJobId = await generateJobId();   // 🎯 Get the next number (1, 2, 3, ...)
@@ -431,6 +438,50 @@ createdAt: serverTimestamp(),
                 <option>Freelance</option>
               </select>
             </div>
+{/* Visibility Options */}
+<div className="col-span-2">
+  <label className="font-medium">Who should see this job?</label>
+
+  <div className="mt-2 flex flex-col gap-2">
+
+    {/* Candidates Only */}
+    <label className="flex items-center gap-2">
+      <input
+        type="radio"
+        name="visibility"
+        value="candidates"
+        checked={jobData.visibility === "candidates"}
+        onChange={handleChange}
+      />
+      Candidates Only 
+    </label>
+
+    {/* Recruiters Only */}
+    <label className="flex items-center gap-2">
+      <input
+        type="radio"
+        name="visibility"
+        value="recruiters"
+        checked={jobData.visibility === "recruiters"}
+        onChange={handleChange}
+      />
+      Recruiters Only
+    </label>
+
+    {/* Both */}
+    <label className="flex items-center gap-2">
+      <input
+        type="radio"
+        name="visibility"
+        value="both"
+        checked={jobData.visibility === "both"}
+        onChange={handleChange}
+      />
+      Both Candidates & Recruiters
+    </label>
+
+  </div>
+</div>
 
             {/* C2C Allowed */}
             {jobData.jobType === "Contract" && (

@@ -9,24 +9,20 @@ import {
   limit,
   getDocs,
 } from "firebase/firestore";
+import CreditsTab from "./CreditsTab";
+import CompanyTab from "./CompanyTab";
 import { db, storage } from "../../firebase/config";
 import { getAuth } from "firebase/auth";
 import { indiaStates, usaStates } from "../../constants/Data";
-
-
-
 import {
   ref as storageRef,
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
-
 import { Camera, Edit2, Check, X, Users } from "lucide-react";
-
 export default function RecruiterProfile() {
   const auth = getAuth();
   const uid = auth?.currentUser?.uid;
-
   const [userData, setUserData] = useState(null);
   const [companyData, setCompanyData] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -42,8 +38,7 @@ export default function RecruiterProfile() {
   // ---------- ADD MOBILE VALIDATION HELPER ----------
 const validateMobile = (raw = "", country = "India") => {
   const digits = String(raw).replace(/\D/g, "");
-
-  if (country === "India") {
+if (country === "India") {
     if (!/^[6-9]\d{9}$/.test(digits)) {
       return {
         valid: false,
@@ -62,12 +57,10 @@ const validateMobile = (raw = "", country = "India") => {
       return { valid: false, message: "Invalid mobile. Must be 10 digits." };
     }
   }
-
-  return { valid: true, digits };
+return { valid: true, digits };
 };
 // -------------------------------------------------
-
-  const fieldConfig = useMemo(
+ const fieldConfig = useMemo(
     () => ({
       personalInfo: [
         { key: "profileImage", label: "Profile Picture", type: "image", editable: true },
@@ -77,12 +70,10 @@ const validateMobile = (raw = "", country = "India") => {
         { key: "country", label: "Country", type: "text", editable: false },
         { key: "state", label: "State / Region", type: "select", editable: true },
       ],
-
       professionalInfo: [
         { key: "designation", label: "Designation", type: "text", editable: true },
         { key: "linkedin", label: "LinkedIn URL", type: "url", editable: true },
       ],
-
       systemInfo: [
         { key: "role", label: "Role", type: "text", editable: false },
         { key: "profileComplete", label: "Profile Complete", type: "boolean", editable: false },
@@ -90,8 +81,7 @@ const validateMobile = (raw = "", country = "India") => {
     }),
     []
   );
-
-  // realtime user doc
+// realtime user doc
   useEffect(() => {
     if (!uid) return;
     setLoadingUser(true);
@@ -108,18 +98,15 @@ const validateMobile = (raw = "", country = "India") => {
         setLoadingUser(false);
       }
     );
-
-    return () => unsub();
+   return () => unsub();
   }, [uid]);
-
-  // company doc snapshot
-  useEffect(() => {
+// company doc snapshot
+useEffect(() => {
     if (!userData?.companyId) {
       setCompanyData(null);
       return;
     }
-
-    setLoadingCompany(true);
+   setLoadingCompany(true);
     const companyRef = doc(db, "companies", userData.companyId);
     const unsub = onSnapshot(
       companyRef,
@@ -136,8 +123,7 @@ const validateMobile = (raw = "", country = "India") => {
 
     return () => unsub();
   }, [userData?.companyId]);
-
-  // credit history
+// credit history
   const fetchCreditHistory = async () => {
     if (!uid) return;
     setLoadingCredits(true);
@@ -152,30 +138,23 @@ const validateMobile = (raw = "", country = "India") => {
     }
     setLoadingCredits(false);
   };
-
-  useEffect(() => {
+useEffect(() => {
     if (activeTab === "credits") fetchCreditHistory();
   }, [activeTab]);
-
-  const showToast = (t) => {
+const showToast = (t) => {
     setToast(t);
     setTimeout(() => setToast(null), 4000);
   };
-
-  // unified mobile getter: prefer mobile, fallback to phone
-  const getMobile = (data) => {
+// unified mobile getter: prefer mobile, fallback to phone
+const getMobile = (data) => {
   if (!data) return "-";
   return data.mobile || "-";
 };
-
-
-  // format phone minimal (you can extend for country)
+// format phone minimal (you can extend for country)
   const formatPhone = (num) => {
   if (!num || num === "-") return "-";
-
-  const digits = String(num).replace(/\D/g, "");
-
-  // INDIA
+const digits = String(num).replace(/\D/g, "");
+// INDIA
   if (userData?.country === "India") {
 
     // 98765 43210 → +91 98765-43210
@@ -188,46 +167,36 @@ const validateMobile = (raw = "", country = "India") => {
     // 4155552671 → +1 (415) 555-2671
     return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
-
-  // Default fallback
+// Default fallback
   return digits;
 };
-
-
-  // optimistic local update
+// optimistic local update
   const handleFieldChange = (key, value) => {
     setUserData((p) => ({ ...p, [key]: value }));
   };
-
-  // save one field (inline)
+// save one field (inline)
   const saveField = async (key) => {
     if (!uid) return showToast({ type: "error", message: "User not available." });
     setSaving(true);
     try {
       const userRef = doc(db, "users", uid);
-
-      // If editing mobile, store to mobile and phone for compatibility
+// If editing mobile, store to mobile and phone for compatibility
      if (key === "mobile") {
   const mobileCheck = validateMobile(userData.mobile, userData?.country);
-
-
-  if (!mobileCheck.valid) {
+if (!mobileCheck.valid) {
     showToast({ type: "error", message: mobileCheck.message });
     setSaving(false);
     return;
   }
-
-  await updateDoc(userRef, {
+await updateDoc(userRef, {
     mobile: mobileCheck.digits,  // store digits only
   });
-
-  showToast({ type: "success", message: "Mobile updated" });
+showToast({ type: "success", message: "Mobile updated" });
   setEditingField(null);
   setSaving(false);
   return;
 }
-
- else if (key === "designation") {
+else if (key === "designation") {
         // ensure default designation
         const val = userData.designation || "Recruiter";
         await updateDoc(userRef, { designation: val });
@@ -235,8 +204,7 @@ const validateMobile = (raw = "", country = "India") => {
   const newValue = userData[key];  // ALWAYS fresh from state
   await updateDoc(userRef, { [key]: newValue });
 }
-
-      showToast({ type: "success", message: "Saved" });
+showToast({ type: "success", message: "Saved" });
       setEditingField(null);
     } catch (err) {
       console.error("saveField", err);
@@ -244,59 +212,44 @@ const validateMobile = (raw = "", country = "India") => {
     }
     setSaving(false);
   };
-
 const saveAll = async () => {
   if (!uid) return showToast({ type: "error", message: "User not available." });
-
-  setSaving(true);
+setSaving(true);
   try {
     const userRef = doc(db, "users", uid);
-
-    // Validate mobile before saving
+// Validate mobile before saving
     const mobileCheck = validateMobile(userData.mobile, userData?.country);
-
-
-    if (!mobileCheck.valid) {
+if (!mobileCheck.valid) {
       showToast({ type: "error", message: mobileCheck.message });
       setSaving(false);
       return;
     }
-
-    // 🔥 Build payload safely
+// 🔥 Build payload safely
     const payload = {
       ...userData,
       mobile: mobileCheck.digits,  // digits only
     };
-
-    // 🔥 Remove fields we should never save back
 // 🔥 Remove fields we should never save back
 delete payload.phone;   // <— ADD THIS
 delete payload.credits;
 delete payload.role;
 delete payload.profileComplete;
-
-
-    await updateDoc(userRef, payload);
-
-    showToast({ type: "success", message: "Profile updated" });
+await updateDoc(userRef, payload);
+showToast({ type: "success", message: "Profile updated" });
   } catch (err) {
     console.error("saveAll", err);
     showToast({ type: "error", message: "Update failed" });
   }
-
-  setSaving(false);
+setSaving(false);
 };
-
-
-  // upload image
-  const handleImagePick = (file) => {
+// upload image
+const handleImagePick = (file) => {
     if (!file || !uid) return;
     setUploading(true);
     const path = `profileImages/${uid}/${Date.now()}_${file.name}`;
     const sRef = storageRef(storage, path);
     const uploadTask = uploadBytesResumable(sRef, file);
-
-    uploadTask.on(
+uploadTask.on(
       "state_changed",
       (snapshot) => {
         const prog = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
@@ -326,14 +279,12 @@ delete payload.profileComplete;
   const Skeleton = ({ className = "", style = {} }) => (
     <div className={`animate-pulse bg-gray-200 rounded ${className}`} style={style} />
   );
-
-  const InlineField = ({ field }) => {
+const InlineField = ({ field }) => {
     const key = field.key;
     let value;
     if (key === "mobile") value = getMobile(userData);
     else value = userData?.[key] ?? "";
-
-    if (field.type === "image") {
+if (field.type === "image") {
       return (
         <div className="flex items-center gap-4">
           <img
@@ -362,9 +313,7 @@ delete payload.profileComplete;
   if (field.type === "select") {
   const options =
   (userData?.country || "India") === "India" ? indiaStates : usaStates;
-
-
-  return (
+return (
     <div className="flex items-start gap-2">
       {editingField === key ? (
         <select
@@ -382,8 +331,7 @@ delete payload.profileComplete;
       ) : (
         <div className="text-sm">{value || "-"}</div>
       )}
-
-      {field.editable && (
+{field.editable && (
         <div>
           {editingField === key ? (
             <>
@@ -414,9 +362,7 @@ delete payload.profileComplete;
     </div>
   );
 }
-
-
-    return (
+return (
       <div className="flex items-start gap-2">
         {editingField === key ? (
           <input
@@ -462,8 +408,7 @@ delete payload.profileComplete;
       </div>
     );
   };
-
-  // render
+// render
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -479,188 +424,161 @@ delete payload.profileComplete;
             </button>
           ))}
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* LEFT CARD */}
-          <div className="bg-white rounded-xl p-6 shadow text-center">
-            <div className="relative w-32 h-32 mx-auto">
-              <img
-                src={userData?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.name || "User")}&background=0D8ABC&color=fff&rounded=true&size=128`}
-                alt="pf"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.name || "User")}&background=0D8ABC&color=fff&rounded=true&size=128`;
-                }}
-                className="w-full h-full rounded-full object-cover border"
-              />
-              <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer">
-                <Camera size={14} />
-                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImagePick(e.target.files?.[0])} />
-              </label>
-            </div>
+<div className="bg-white rounded-xl p-6 shadow-md text-center">
+  {/* Profile image container */}
+  <div className="relative w-32 h-32 mx-auto rounded-full overflow-hidden border-4 border-white shadow-lg">
+    <img
+      src={userData?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.name || "User")}&background=0D8ABC&color=fff&rounded=true&size=128`}
+      alt="Profile"
+      onError={(e) => {
+        e.currentTarget.onerror = null;
+        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.name || "User")}&background=0D8ABC&color=fff&rounded=true&size=128`;
+      }}
+      className="w-full h-full object-cover"
+    />
+    {/* Profile picture change button */}
+    <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-blue-700 transition">
+      <Camera size={14} />
+      <input
+        type="file"
+        className="hidden"
+        accept="image/*"
+        onChange={(e) => handleImagePick(e.target.files?.[0])}
+      />
+    </label>
+  </div>
 
-            <h2 className="text-xl font-semibold mt-3">{userData?.name || "-"}</h2>
-            <p className="text-sm text-gray-500">{userData?.designation || "Recruiter"}</p>
+  {/* Name and Designation */}
+  <h2 className="text-xl font-semibold mt-3">{userData?.name || "User Name"}</h2>
+  <p className="text-sm text-gray-500">{userData?.designation || "Recruiter"}</p>
 
-            <div className="mt-4 bg-gray-50 p-3 rounded-lg text-left text-sm space-y-2">
-              <div><strong>Location:</strong> {userData?.state ? `${userData.state}, ${userData.country}` : userData?.country || "-"}</div>
-              <div><strong>Email:</strong> {userData?.email || "-"}</div>
-              <div>
-  <strong>Mobile:</strong>{" "}
-  {formatPhone(getMobile(userData))}
+  {/* Location, Email, and Mobile */}
+  <div className="mt-4 text-left text-sm text-gray-600">
+    <div className="flex items-center gap-2">
+      <Users size={16} />
+      <span>{userData?.state ? `${userData.state}, ${userData.country}` : userData?.country || "-"}</span>
+    </div>
+    <div className="flex items-center gap-2 mt-2">
+      <span className="font-semibold">Email:</span>
+      <span>{userData?.email || "-"}</span>
+    </div>
+    <div className="flex items-center gap-2 mt-2">
+      <span className="font-semibold">Mobile:</span>
+      <span>{formatPhone(getMobile(userData))}</span>
+    </div>
+  </div>
+
+  {/* Action buttons */}
+  <div className="mt-6 flex justify-center gap-3">
+    <button
+      onClick={() => setEditingField("name")}
+      className="px-5 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition"
+    >
+      Edit Profile
+    </button>
+    <button
+      onClick={() => setActiveTab("company")}
+      className="px-5 py-2 bg-gray-100 text-gray-700 rounded-md shadow hover:bg-gray-200 transition"
+    >
+      View Company
+    </button>
+  </div>
+
+  {/* Uploading progress */}
+  {uploading && (
+    <div className="mt-3 text-sm text-blue-600">
+      Uploading... {uploadProgress}%
+    </div>
+  )}
 
 </div>
 
-            </div>
-
-            <div className="mt-4 flex gap-2 justify-center">
-              <button onClick={() => setEditingField("name")} className="px-3 py-2 rounded-md bg-blue-600 text-white">Edit Profile</button>
-              <button onClick={() => setActiveTab("company")} className="px-3 py-2 rounded-md bg-gray-100">View Company</button>
-            </div>
-
-            {uploading && <div className="mt-3 text-sm text-blue-600">Uploading... {uploadProgress}%</div>}
-
-            <div className="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-3 text-center">
-              <div className="text-sm text-gray-600">Available Credits</div>
-              <div className="text-2xl font-semibold text-blue-700">{userData?.credits ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Company Pool: {companyData?.companyCredits ?? "-"}</div>
-            </div>
-          </div>
-
-          {/* RIGHT */}
+{/* RIGHT */}
           <div className="md:col-span-2 bg-white rounded-xl p-6 shadow">
             {/* PROFILE TAB */}
-            {activeTab === "profile" && (
-              <>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Profile Information</h3>
-                  <div>
-                    <button onClick={saveAll} className="px-4 py-2 bg-blue-600 text-white rounded-md" disabled={saving}>{saving ? "Saving..." : "Save All"}</button>
-                  </div>
-                </div>
+          {activeTab === "profile" && (
+  <>
+    {/* HEADER */}
+    <div className="flex justify-between items-center mb-6 pb-2 border-b">
+      <h3 className="text-xl font-semibold text-gray-800 tracking-wide">
+        Profile Information
+      </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {fieldConfig.personalInfo.map((f) => (
-                    <div key={f.key} className="p-4 border rounded bg-gray-50">
-                      <label className="text-xs text-gray-500">{f.label}</label>
-                      <div className="mt-2"><InlineField field={f} /></div>
-                    </div>
-                  ))}
+      <button
+        onClick={saveAll}
+        disabled={saving}
+        className="px-5 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 transition disabled:opacity-50"
+      >
+        {saving ? "Saving..." : "Save All"}
+      </button>
+    </div>
 
-                  {fieldConfig.professionalInfo.map((f) => (
-                    <div key={f.key} className="p-4 border rounded bg-gray-50">
-                      <label className="text-xs text-gray-500">{f.label}</label>
-                      <div className="mt-2"><InlineField field={f} /></div>
-                    </div>
-                  ))}
-
-                  {fieldConfig.systemInfo.map((f) => (
-                    <div key={f.key} className="p-4 border rounded bg-gray-50">
-                      <label className="text-xs text-gray-500">{f.label}</label>
-                      <div className="mt-2 text-sm text-gray-700">{String(userData?.[f.key] ?? "-")}</div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* COMPANY TAB */}
-            {activeTab === "company" && (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Company Information</h3>
-                  <div className="text-sm text-gray-500">
-  {companyData ? (companyData.name || companyData.companyName) : "No company"}
-</div>
-
-                </div>
-
-                {loadingCompany ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-6 w-1/2" />
-                    <Skeleton className="h-6 w-1/4" />
-                  </div>
-                ) : companyData ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border rounded">
-                      <div className="text-xs text-gray-500">Company Name</div>
-                      <div className="font-medium">
-  {companyData.name || companyData.companyName}
-</div>
-
-
-                      <div className="mt-3 text-xs text-gray-500">Website</div>
-                      <a href={companyData.website} target="_blank" rel="noreferrer" className="text-blue-600">{companyData.website}</a>
-
-                      <div className="mt-3 text-xs text-gray-500">Email</div>
-                      <div>{companyData.email}</div>
-                    </div>
-
-                    <div className="p-4 border rounded">
-                      <div className="text-xs text-gray-500">Country</div>
-                      <div className="font-medium">{companyData.country}</div>
-
-                      <div className="mt-3 text-xs text-gray-500">Shared Credits</div>
-                      <div className="text-xl font-semibold">{companyData.companyCredits ?? 0}</div>
-
-                      <div className="mt-3 text-xs text-gray-500">Team Size</div>
-                      <div className="flex items-center gap-2"><Users size={16} /> <div>{companyData.recruiters?.length ?? 1}</div></div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-gray-500">No company linked to this account.</div>
-                )}
-              </>
-            )}
-
-            {/* CREDITS TAB */}
-            {activeTab === "credits" && (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Credits & Transactions</h3>
-                  <div className="text-sm text-gray-500">Available: {userData?.credits ?? 0}</div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="p-3 border rounded bg-gray-50">
-                    <div className="text-sm text-gray-600">Personal Credits</div>
-                    <div className="text-2xl font-semibold">{userData?.credits ?? 0}</div>
-                    <div className="text-xs text-gray-500">Each unlock costs 10 credits</div>
-                  </div>
-
-                  <div className="p-3 border rounded">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-600">Recent Transactions</div>
-                      <button onClick={() => fetchCreditHistory()} className="text-sm text-blue-600">Refresh</button>
-                    </div>
-
-                    {loadingCredits ? (
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-4 w-1/2" />
-                      </div>
-                    ) : creditHistory.length ? (
-                      <ul className="space-y-2">
-                        {creditHistory.map((t) => (
-                          <li key={t.id} className="flex justify-between text-sm">
-                            <div>
-                              <div className="font-medium">{t.type || "Txn"}</div>
-                              <div className="text-gray-500">{new Date(t.createdAt?.toDate?.() || t.createdAt || Date.now()).toLocaleString()}</div>
-                            </div>
-                            <div className={`font-semibold ${t.amount >=0 ? "text-green-600" : "text-red-600"}`}>{t.amount > 0 ? `+${t.amount}` : t.amount}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-gray-500 text-sm">No recent transactions.</div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
+    {/* FORM GRID */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {fieldConfig.personalInfo.map((f) => (
+        <div
+          key={f.key}
+          className="p-5 bg-white border rounded-lg shadow-sm hover:shadow transition"
+        >
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            {f.label}
+          </label>
+          <div className="mt-3">
+            <InlineField field={f} />
           </div>
+        </div>
+      ))}
+
+      {fieldConfig.professionalInfo.map((f) => (
+        <div
+          key={f.key}
+          className="p-5 bg-white border rounded-lg shadow-sm hover:shadow transition"
+        >
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            {f.label}
+          </label>
+          <div className="mt-3">
+            <InlineField field={f} />
+          </div>
+        </div>
+      ))}
+
+      {fieldConfig.systemInfo.map((f) => (
+        <div
+          key={f.key}
+          className="p-5 bg-white border rounded-lg shadow-sm hover:shadow transition"
+        >
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            {f.label}
+          </label>
+          <div className="mt-3 text-sm text-gray-800">
+            {String(userData?.[f.key] ?? "-")}
+          </div>
+        </div>
+      ))}
+    </div>
+  </>
+)}
+
+{activeTab === "company" && (
+  <CompanyTab
+    companyData={companyData}
+    loadingCompany={loadingCompany}
+  />
+)}
+
+{activeTab === "credits" && (
+  <CreditsTab
+    userData={userData}
+    creditHistory={creditHistory}
+    loadingCredits={loadingCredits}
+    fetchCreditHistory={fetchCreditHistory}
+  />
+)}
+
+</div>
         </div>
 
         {/* Toast */}

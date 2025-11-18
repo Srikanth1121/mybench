@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { deleteField } from "firebase/firestore";
+
 import {
   collection,
   getDocs,
@@ -43,15 +45,43 @@ const secondaryAuth = getAuth(secondaryApp);
 
 export default function RecruiterManagement({ companyId }) {
   const [recruiters, setRecruiters] = useState([]);
-  const [newRecruiter, setNewRecruiter] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-  });
+  // NEW — use mobile only
+const [newRecruiter, setNewRecruiter] = useState({
+  name: "",
+  email: "",
+  mobile: "",
+  password: "",
+  confirmPassword: "",
+});
+
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+const validateMobile = (raw = "", country = "India") => {
+  const digits = String(raw).replace(/\D/g, "");
+
+  if (country === "India") {
+    if (!/^[6-9]\d{9}$/.test(digits)) {
+      return {
+        valid: false,
+        message: "Invalid Indian mobile. Must be 10 digits starting with 6-9.",
+      };
+    }
+  } else if (country === "USA") {
+    if (!/^\d{10}$/.test(digits)) {
+      return {
+        valid: false,
+        message: "Invalid US mobile. Must be 10 digits.",
+      };
+    }
+  } else {
+    if (!/^\d{10}$/.test(digits)) {
+      return { valid: false, message: "Invalid mobile. Must be 10 digits." };
+    }
+  }
+
+  return { valid: true, digits };
+};
 
   // ✅ Live Fetch recruiters under this company
   useEffect(() => {
@@ -102,6 +132,13 @@ const handleAddRecruiter = async (e) => {
     alert("Passwords do not match");
     return;
   }
+  // Validate mobile using company admin's country
+  const mobileCheck = validateMobile(newRecruiter.mobile, adminCountry);
+  if (!mobileCheck.valid) {
+    alert(mobileCheck.message);
+    setLoading(false);
+    return;
+  }
 
   try {
     setLoading(true);
@@ -121,8 +158,10 @@ await setDoc(doc(db, "users", newUser.uid), {
   uid: newUser.uid,
   name: newRecruiter.name,
   email: newRecruiter.email,
-  phone: newRecruiter.phone,
-  role: "recruiter",
+  mobile: mobileCheck.digits,
+
+
+role: "recruiter",
   companyId: companyId,
   country: adminCountry,      // ✅ inherit company admin’s country
   credits: 50,                // ✅ starting credits
@@ -138,8 +177,9 @@ await setDoc(doc(db, "companies", companyId, "recruiters", newUser.uid), {
   uid: newUser.uid,
   name: newRecruiter.name,
   email: newRecruiter.email,
-  phone: newRecruiter.phone,
-  role: "recruiter",
+ mobile: mobileCheck.digits,
+
+role: "recruiter",
   country: adminCountry,      // ✅ include company’s country for reporting consistency
   createdAt: serverTimestamp(),
   isActive: true,
@@ -147,13 +187,15 @@ await setDoc(doc(db, "companies", companyId, "recruiters", newUser.uid), {
 
 
     // ✅ Clear form and close modal
-    setNewRecruiter({
-      name: "",
-      email: "",
-      phone: "",
-      password: "",
-      confirmPassword: "",
-    });
+   // NEW
+setNewRecruiter({
+  name: "",
+  email: "",
+  mobile: "",
+  password: "",
+  confirmPassword: "",
+});
+
     setShowAdd(false);
     alert("✅ Recruiter added successfully!");
 
@@ -177,7 +219,12 @@ await setDoc(doc(db, "companies", companyId, "recruiters", newUser.uid), {
   const handleDeleteRecruiter = async (id) => {
     if (!window.confirm("Are you sure you want to delete this recruiter?")) return;
     try {
-      await deleteDoc(doc(db, "companies", companyId, "recruiters", id));
+      // delete inside company
+await deleteDoc(doc(db, "companies", companyId, "recruiters", id));
+
+// delete global user also
+await deleteDoc(doc(db, "users", id));
+
       alert("Recruiter deleted successfully!");
     } catch (error) {
       console.error("Error deleting recruiter:", error);
@@ -202,10 +249,15 @@ const patchOldRecruiters = async () => {
       // Update only if missing fields
       if (!recruiterData.country || recruiterData.profileComplete === undefined) {
         const userRef = doc(db, "users", recruiterDoc.id);
+
         await updateDoc(userRef, {
+          mobile: recruiterData.mobile || null,
           country: adminCountry,
           credits: recruiterData.credits || 50,
           profileComplete: recruiterData.profileComplete || false,
+
+          // 🔥 DELETE phone field
+          phone: deleteField(),
         });
 
         const companyRecruiterRef = doc(
@@ -215,8 +267,13 @@ const patchOldRecruiters = async () => {
           "recruiters",
           recruiterDoc.id
         );
+
         await updateDoc(companyRecruiterRef, {
+          mobile: recruiterData.mobile || null,
           country: adminCountry,
+
+          // 🔥 DELETE phone field
+          phone: deleteField(),
         });
 
         console.log("✅ Patched recruiter:", recruiterData.email);
@@ -229,6 +286,7 @@ const patchOldRecruiters = async () => {
     alert("Error patching recruiters — check console for details.");
   }
 };
+
 return (
     <div className="p-6">
       {/* Header */}
@@ -260,7 +318,8 @@ return (
             <tr>
               <th className="px-4 py-3 text-left">Name</th>
               <th className="px-4 py-3 text-left">Email</th>
-              <th className="px-4 py-3 text-left">Phone</th>
+              <th className="px-4 py-3 text-left">Mobile</th>
+
               <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-left">Action</th>
             </tr>
@@ -277,8 +336,9 @@ return (
                 <tr key={rec.id} className="border-b border-border hover:bg-muted/20">
                   <td className="px-4 py-3">{rec.name}</td>
                   <td className="px-4 py-3">{rec.email}</td>
-                  <td className="px-4 py-3">{rec.phone || "—"}</td>
-                  <td className="px-4 py-3">{rec.isActive ? "Active" : "Hold"}</td>
+                  <td className="px-4 py-3">{rec.mobile || "—"}</td>
+
+<td className="px-4 py-3">{rec.isActive ? "Active" : "Hold"}</td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => handleDeleteRecruiter(rec.id)}
@@ -320,15 +380,17 @@ return (
                   setNewRecruiter({ ...newRecruiter, email: e.target.value })
                 }
               />
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                className="w-full border border-border rounded-lg p-2"
-                value={newRecruiter.phone}
-                onChange={(e) =>
-                  setNewRecruiter({ ...newRecruiter, phone: e.target.value })
-                }
-              />
+<input
+  type="tel"
+  placeholder="Mobile Number"
+  className="w-full border border-border rounded-lg p-2"
+  value={newRecruiter.mobile}
+  onChange={(e) =>
+    setNewRecruiter({ ...newRecruiter, mobile: e.target.value })
+  }
+/>
+
+
               <input
                 type="password"
                 placeholder="Password"

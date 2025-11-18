@@ -13,6 +13,7 @@ import RecruiterAllCandidates from "./pages/Recruiter/RecruiterAllCandidates";
 import RecruiterMyJobs from "./pages/Recruiter/RecruiterMyJobs";
 import RecruiterAllJobsUSA from "./pages/Recruiter/RecruiterAllJobsUSA";
 import RecruiterAllJobsIndia from "./pages/Recruiter/RecruiterAllJobsIndia";
+import RecruiterProfile from "./pages/Recruiter/RecruiterProfile";
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
       <CompanyAdminProfile />
     </ProtectedRoute>
   }
+  
 />
 <Route
   path="/company-admin/dashboard"
@@ -50,7 +52,9 @@ function App() {
       <CompanyAdminDashboard />
     </ProtectedRoute>
   }
+  
 />
+{/* RECRUITER DASHBOARD ROUTES */}
 <Route
   path="/recruiter/dashboard/*"
   element={
@@ -61,12 +65,14 @@ function App() {
 >
   <Route path="my-candidates" element={<RecruiterMyCandidates />} />
   <Route path="all-candidates" element={<RecruiterAllCandidates />} />
-  <Route path="my-jobs" element={<RecruiterMyJobs />} />     {/* ✅ NEW ROUTE */}
- <Route path="all-jobs" element={<RecruiterAllJobsUSA />} />
- <Route path="all-jobs-india" element={<RecruiterAllJobsIndia />} />
+  <Route path="my-jobs" element={<RecruiterMyJobs />} />
+  <Route path="all-jobs" element={<RecruiterAllJobsUSA />} />
+  <Route path="all-jobs-india" element={<RecruiterAllJobsIndia />} />
 
-
+  {/* ✅ NESTED PROFILE ROUTE */}
+  <Route path="profile" element={<RecruiterProfile />} />
 </Route>
+
 
 {/* Temporarily keep Unauthorized route (for now) */}
         {/* Once final testing done, we will delete this */}

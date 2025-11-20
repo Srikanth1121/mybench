@@ -14,6 +14,15 @@ import RecruiterMyJobs from "./pages/Recruiter/RecruiterMyJobs";
 import RecruiterAllJobsUSA from "./pages/Recruiter/RecruiterAllJobsUSA";
 import RecruiterAllJobsIndia from "./pages/Recruiter/RecruiterAllJobsIndia";
 import RecruiterProfile from "./pages/Recruiter/RecruiterProfile";
+import CandidateDashboard from "./pages/Candidate/CandidateDashboard";
+import JobSearch from "./pages/Candidate/JobSearch";
+import AppliedJobs from "./pages/Candidate/AppliedJobs";
+import CandidateProfile from "./pages/Candidate/CandidateProfile";
+import JobDetails from "./pages/Candidate/JobDetails";
+import ApplicationDetails from "./pages/Candidate/ApplicationDetails";
+import CandidateNavbar from "./pages/Candidate/CandidateNavbar";
+
+
 
 function App() {
   return (
@@ -72,6 +81,24 @@ function App() {
   {/* ✅ NESTED PROFILE ROUTE */}
   <Route path="profile" element={<RecruiterProfile />} />
 </Route>
+
+{/* CANDIDATE ROUTES (with fixed top navbar layout) */}
+<Route
+  path="/candidate"
+  element={
+    <ProtectedRoute allowedRole="candidate">
+      <CandidateNavbar />
+    </ProtectedRoute>
+  }
+>
+  <Route path="dashboard" element={<CandidateDashboard />} />
+  <Route path="jobs" element={<JobSearch />} />
+  <Route path="applied" element={<AppliedJobs />} />
+  <Route path="profile" element={<CandidateProfile />} />
+  <Route path="job/:jobDocId" element={<JobDetails />} />
+  <Route path="application/:appId" element={<ApplicationDetails />} />
+</Route>
+
 
 
 {/* Temporarily keep Unauthorized route (for now) */}

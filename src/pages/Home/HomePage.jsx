@@ -63,12 +63,12 @@ async function handleLogin(e) {
       const role = userDoc.data().role;
       console.log("User role:", role);
 
-      if (role === "superadmin") navigate("/superadmin");
-      else if (role === "companyadmin") navigate("/company-admin/dashboard");
-      else if (role === "recruiter") navigate("/recruiter/dashboard");
-      else alert("⚠️ Unknown role, please contact support.");
-    } else {
-      alert("⚠️ No user record found in Firestore!");
+  if (role === "superadmin") navigate("/superadmin");
+else if (role === "companyadmin") navigate("/company-admin/dashboard");
+else if (role === "recruiter") navigate("/recruiter/dashboard");
+else if (role === "candidate") navigate("/candidate/dashboard");  // ⭐ ADD THIS LINE
+else alert("⚠️ Unknown role, please contact support.");
+
     }
 
   } catch (err) {
@@ -193,11 +193,7 @@ useEffect(() => {
     );
   }
 }, []);
-
-
-
-
-  return (
+return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
 
       <div className="w-full flex flex-col lg:flex-row items-center justify-between px-8 lg:px-16 py-10 mx-auto">

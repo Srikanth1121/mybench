@@ -7,6 +7,10 @@ import {
   orderBy,
   onSnapshot,
 } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
+const auth = getAuth();
+
 
 const RecruiterAllJobsUSA = () => {
   const [jobs, setJobs] = useState([]);
@@ -14,6 +18,7 @@ const RecruiterAllJobsUSA = () => {
   const [selectedStatus, setSelectedStatus] = useState("Active");
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+const navigate = useNavigate();
 
   const jobsPerPage = 10;
 
@@ -38,13 +43,19 @@ const RecruiterAllJobsUSA = () => {
       );
     }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setJobs(list);
-    });
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+  const user = auth.currentUser;
+
+  const list = snapshot.docs
+    .map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    .filter((job) => job.recruiterId !== user?.uid); // ⭐ REMOVE your own jobs
+
+  setJobs(list);
+});
+
 
     return () => unsubscribe();
   }, [selectedStatus]);
@@ -200,7 +211,8 @@ const RecruiterAllJobsUSA = () => {
 
               <div
                 className="text-blue-700 font-medium cursor-pointer hover:underline truncate"
-                onClick={() => console.log("View Job:", job.id)}
+                onClick={() => navigate(`/recruiter/job/${job.id}`)}
+
               >
                 {job.jobTitle}
               </div>

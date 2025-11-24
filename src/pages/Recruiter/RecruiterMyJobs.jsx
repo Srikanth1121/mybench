@@ -5,16 +5,8 @@ import RecruiterAddJobModal from "./RecruiterAddJobModal";
 import RecruiterAddJobUSAModal from "./RecruiterAddJobUSAModal";
 import { RecruiterContext } from "../../context/RecruiterContext";
 import { doc, deleteDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { Link } from "react-router-dom";
 
-
-
-/* ------------------------------------------------------------------
-   JOB CARD COMPONENT
--------------------------------------------------------------------*/
-/* ------------------------------------------------------------------
-   POSH | PREMIUM | ENTERPRISE JOB CARD
-   Clean, minimal, corporate professional UI
--------------------------------------------------------------------*/
 const JobCard = ({ job, isRecruiter, onEdit, onDelete, onToggleStatus, onView }) => {
   const {
     jobTitle,
@@ -46,12 +38,14 @@ const JobCard = ({ job, isRecruiter, onEdit, onDelete, onToggleStatus, onView })
     >
       {/* TOP ROW — Title + Job Code */}
       <div className="flex justify-between items-start mb-1">
-        <h2
-          onClick={() => onView(job)}
-          className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-700"
-        >
-          {jobTitle}
-        </h2>
+        <Link 
+ to={`/recruiter/dashboard/job/${job.id}`}
+
+  className="text-blue-700 hover:text-blue-900 font-semibold cursor-pointer"
+>
+  {jobTitle}
+</Link>
+
 
         <div className="text-xs text-gray-700">
   #{job.jobId}

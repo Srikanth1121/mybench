@@ -21,6 +21,8 @@ import CandidateProfile from "./pages/Candidate/CandidateProfile";
 import JobDetails from "./pages/Candidate/JobDetails";
 import ApplicationDetails from "./pages/Candidate/ApplicationDetails";
 import CandidateNavbar from "./pages/Candidate/CandidateNavbar";
+import MyJobsApplicationsView from "./pages/Recruiter/MyJobsApplicationsView";
+import Alljobdetailsview from "./pages/Recruiter/Alljobdetailsview";
 
 
 
@@ -80,7 +82,17 @@ function App() {
 
   {/* ✅ NESTED PROFILE ROUTE */}
   <Route path="profile" element={<RecruiterProfile />} />
+   <Route path="job/:jobId" element={<MyJobsApplicationsView />} />
+
 </Route>
+<Route
+  path="/recruiter/job/:jobId"
+  element={
+    <ProtectedRoute allowedRole="recruiter">
+      <Alljobdetailsview />
+    </ProtectedRoute>
+  }
+/>
 
 {/* CANDIDATE ROUTES (with fixed top navbar layout) */}
 <Route

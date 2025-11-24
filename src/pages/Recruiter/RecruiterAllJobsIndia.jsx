@@ -7,6 +7,10 @@ import {
   orderBy,
   onSnapshot,
 } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
+const auth = getAuth();
+
 
 const RecruiterAllJobsIndia = () => {
   const [jobs, setJobs] = useState([]);
@@ -14,6 +18,7 @@ const RecruiterAllJobsIndia = () => {
   const [selectedStatus, setSelectedStatus] = useState("Active");
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+const navigate = useNavigate();
 
   const jobsPerPage = 10;
 
@@ -39,11 +44,16 @@ const RecruiterAllJobsIndia = () => {
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setJobs(list);
+     const user = auth.currentUser;
+
+const list = snapshot.docs
+  .map((doc) => ({ id: doc.id, ...doc.data() }))
+.filter((job) => !(job.recruiterId && job.recruiterId === user?.uid));
+
+
+
+setJobs(list);
+
     });
 
     return () => unsubscribe();
@@ -207,7 +217,8 @@ const RecruiterAllJobsIndia = () => {
 
           <div
             className="font-medium text-blue-700 hover:underline cursor-pointer truncate"
-            onClick={() => console.log("View Job:", job.id)}
+            onClick={() => navigate(`/recruiter/job/${job.id}`)}
+
           >
             {job.jobTitle}
           </div>

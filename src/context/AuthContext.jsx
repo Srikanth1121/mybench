@@ -42,6 +42,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setRole(null);
   };
+if (loading) {
+  return <p>Loading...</p>;
+}
 
   return (
     <AuthContext.Provider value={{ user, role, loading, signOutUser }}>

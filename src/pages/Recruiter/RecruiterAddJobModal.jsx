@@ -370,19 +370,36 @@ createdAt: serverTimestamp(),
   type="text"
   value={skillInput}
   onChange={(e) => {
-    const value = e.target.value;
-    setSkillInput(value);
+  let value = e.target.value;
 
-    // Show suggestions
-    if (value.trim().length > 0) {
-      const filtered = skillsOptions.filter(s =>
-        s.toLowerCase().startsWith(value.toLowerCase())
-      );
-      setSkillSuggestions(filtered);
-    } else {
-      setSkillSuggestions([]);
+  // If user types a comma, add the skill immediately
+  if (value.includes(",")) {
+    const skill = value.replace(",", "").trim();
+
+    if (skill.length > 0 && !skillsListState.includes(skill)) {
+      setSkillsListState([...skillsListState, skill]);
     }
-  }}
+
+    // Clear input & suggestions
+    setSkillInput("");
+    setSkillSuggestions([]);
+    return;
+  }
+
+  // Normal typing
+  setSkillInput(value);
+
+  // Suggestion filtering
+  if (value.trim().length > 0) {
+    const filtered = skillsOptions.filter((s) =>
+      s.toLowerCase().startsWith(value.toLowerCase())
+    );
+    setSkillSuggestions(filtered);
+  } else {
+    setSkillSuggestions([]);
+  }
+}}
+
   className="w-full border p-2 rounded mt-1"
   placeholder="Type a skill..."
 />

@@ -66,17 +66,45 @@ export default function JobDetails() {
 
     setApplying(true);
     try {
-      const payload = {
-        jobDocId: job.id,
-        jobId: job.jobId || null,
-        candidateId: auth.currentUser.uid,
-        recruiterId: job.recruiterId || null,
-        status: "Applied",
-        country: job.country || null,
-        createdAt: serverTimestamp(),
-      };
+    // 1️⃣ Fetch candidate profile
 
-      await addDoc(collection(db, "applications"), payload);
+// First try USERS → Direct signup candidates
+let candidate = {};
+
+// 1️⃣ Try DIRECT CANDIDATE PROFILE (candidates collection)
+const directSnap = await getDoc(doc(db, "candidates", auth.currentUser.uid));
+if (directSnap.exists()) {
+  candidate = directSnap.data();
+} else {
+  // 2️⃣ Fallback to signup user data
+  const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+  if (userSnap.exists()) {
+    candidate = userSnap.data();
+  }
+}
+// 2️⃣ Build application payload with candidate details
+const payload = {
+  jobDocId: job.id,
+  jobId: job.jobId || null,
+  recruiterId: job.recruiterId || null,
+
+  // Direct Candidate Fields
+  candidateId: auth.currentUser.uid,
+  candidateName: candidate.fullName || candidate.name || "",
+  candidateEmail: candidate.email || auth.currentUser.email,
+  candidateMobile: candidate.mobile || "",   // ⭐ added
+  candidateExperience: candidate.experience || "", // ⭐ added
+  candidateTitle: candidate.title || candidate.headline || "", // ⭐ added
+  resumeUrl: candidate.resumeUrl || candidate.resumeURL || null,
+
+  appliedByRecruiter: false,
+  status: "Applied",
+  country: job.country || null,
+  createdAt: serverTimestamp(),
+};
+
+
+await addDoc(collection(db, "applications"), payload);
 
       // write notification for recruiter
       if (job.recruiterId) {

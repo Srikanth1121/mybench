@@ -23,7 +23,6 @@ const RecruiterAddJobUSAModal = ({ recruiterId, recruiterCountry, onClose, exist
     experience: "",
     payRate: "",
     payType: "Hourly",
-    skills: "",
     workMode: "Remote",
     workAuth: "",
     visaType: "",
@@ -37,6 +36,7 @@ const RecruiterAddJobUSAModal = ({ recruiterId, recruiterCountry, onClose, exist
 
     const [skillInput, setSkillInput] = useState("");
 const [skillSuggestions, setSkillSuggestions] = useState([]);
+const [skillsListStateUSA, setSkillsListStateUSA] = useState([]);
 
 // ⭐ PREFILL FORM WHEN EDITING
 useEffect(() => {
@@ -50,9 +50,6 @@ jobTitle: existingData.jobTitle ?? "",
     experience: existingData.experience ?? "",
     payRate: existingData.payRate ?? "",
     payType: existingData.payType ?? "Hourly",
-    skills: Array.isArray(existingData.skills)
-      ? existingData.skills.join(", ")
-      : existingData.skills ?? "",
     workMode: existingData.workMode ?? "Remote",
     workAuth: existingData.workAuth ?? "",
     visaType: existingData.visaType ?? "",
@@ -62,7 +59,16 @@ jobTitle: existingData.jobTitle ?? "",
     referralDetails: existingData.referralDetails ?? "",
     jobDescription: existingData.jobDescription ?? "",
     status: existingData.status ?? "Active",
+    
 });
+setSkillsListStateUSA(
+    Array.isArray(existingData?.skills)
+      ? existingData.skills
+      : (existingData?.skills || "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0)
+           );
 }, [existingData]);
 
   const handleChange = (e) => {
@@ -126,10 +132,12 @@ const generateJobId = async () => {
     if (existingData && existingData.id) {
       // ⭐ UPDATE EXISTING JOB
       await updateDoc(doc(db, "jobs", existingData.id), {
-        ...jobData,
-        status: jobData.status || "Active",
-        updatedAt: serverTimestamp(),
-      });
+  ...jobData,
+  skills: skillsListStateUSA,
+  status: jobData.status || "Active",
+  updatedAt: serverTimestamp(),
+});
+
 
       alert("Job Updated Successfully!");
     } else {
@@ -137,13 +145,15 @@ const generateJobId = async () => {
       const newJobId = await generateJobId();
 
       await addDoc(collection(db, "jobs"), {
-        recruiterId,
-        country: recruiterCountry,
-        jobId: newJobId,
-        ...jobData,
-        status: "Active", // Always Active when created
-        createdAt: serverTimestamp(),
-      });
+  recruiterId,
+  country: recruiterCountry,
+  jobId: newJobId,
+  ...jobData,
+  skills: skillsListStateUSA,
+  status: "Active",
+  createdAt: serverTimestamp(),
+});
+
 
       alert("USA Job Posted Successfully!");
     }
@@ -292,25 +302,61 @@ checked={jobData.hideCompany}
             </div>
 
             {/* Skills */}
-            <div className="col-span-2">
+ <div className="col-span-2">
   <label className="font-medium">Mandatory Skills</label>
 
-  {/* Input box */}
+  {/* Tag Display */}
+  <div className="flex flex-wrap gap-2 mt-1 mb-2">
+    {skillsListStateUSA.map((skill, index) => (
+      <span
+        key={index}
+        className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs flex items-center gap-1"
+      >
+        {skill}
+        <button
+          type="button"
+          onClick={() =>
+            setSkillsListStateUSA(
+              skillsListStateUSA.filter((_, i) => i !== index)
+            )
+          }
+          className="text-red-500 ml-1"
+        >
+          ×
+        </button>
+      </span>
+    ))}
+  </div>
+
+  {/* Input + Comma Logic + Suggestions */}
   <input
     type="text"
     value={skillInput}
     onChange={(e) => {
-      const value = e.target.value;
+      let value = e.target.value;
+
+      // Add skill on comma
+      if (value.includes(",")) {
+        const skill = value.replace(",", "").trim();
+
+        if (skill.length > 0 && !skillsListStateUSA.includes(skill)) {
+          setSkillsListStateUSA([...skillsListStateUSA, skill]);
+        }
+
+        setSkillInput("");
+        setSkillSuggestions([]);
+        return;
+      }
+
       setSkillInput(value);
 
-      // Generate suggestions
-     if (value.trim().length > 0) {
-  const filtered = skillsList.filter(s =>
-    s.toLowerCase().startsWith(value.toLowerCase())
-  );
-  setSkillSuggestions(filtered);
-}
-else {
+      // Suggestions
+      if (value.trim().length > 0) {
+        const filtered = skillsList.filter((s) =>
+          s.toLowerCase().startsWith(value.toLowerCase())
+        );
+        setSkillSuggestions(filtered);
+      } else {
         setSkillSuggestions([]);
       }
     }}
@@ -318,7 +364,7 @@ else {
     placeholder="Type a skill..."
   />
 
-  {/* Dropdown Suggestion Box */}
+  {/* Suggestions */}
   {skillSuggestions.length > 0 && (
     <div className="border mt-1 bg-white rounded shadow p-2 max-h-40 overflow-y-auto">
       {skillSuggestions.map((skill, i) => (
@@ -326,14 +372,8 @@ else {
           key={i}
           className="p-2 hover:bg-gray-100 cursor-pointer"
           onClick={() => {
-            // Add selected skill to the jobData.skills list
-            const currentSkills = jobData.skills
-              ? jobData.skills.split(",").map(s => s.trim())
-              : [];
-
-            if (!currentSkills.includes(skill)) {
-              const updatedSkills = [...currentSkills, skill];
-              setJobData({ ...jobData, skills: updatedSkills.join(", ") });
+            if (!skillsListStateUSA.includes(skill)) {
+              setSkillsListStateUSA([...skillsListStateUSA, skill]);
             }
 
             setSkillInput("");
@@ -347,32 +387,6 @@ else {
   )}
 </div>
 
-{/* Selected Skill Tags */}
-{jobData.skills && jobData.skills.length > 0 && (
-  <div className="flex flex-wrap gap-2 mt-2">
-    {jobData.skills.split(",").map((skill, index) => (
-      <div
-        key={index}
-        className="flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
-      >
-        {skill.trim()}
-        <button
-          type="button"
-          className="ml-2 text-red-500 font-bold"
-          onClick={() => {
-            const updated = jobData.skills
-              .split(",")
-              .map(s => s.trim())
-              .filter(s => s !== skill.trim());
-            setJobData({ ...jobData, skills: updated.join(", ") });
-          }}
-        >
-          ×
-        </button>
-      </div>
-    ))}
-  </div>
-)}
 
             {/* Work Mode */}
             <div>

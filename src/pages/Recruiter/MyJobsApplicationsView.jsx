@@ -145,16 +145,7 @@ const parseFormattedNumber = (value) => {
         const combined = `${resume} ${title}`;
         if (!combined.includes(search)) return false;
       }
-
-      // Location search
-      if (filterValues.location) {
-        const loc = filterValues.location.toLowerCase();
-        const candLoc =
-          ((c.city || "") + " " + (c.state || "")).toLowerCase();
-        if (!candLoc.includes(loc)) return false;
-      }
-
-      // Experience range
+ // Experience range
       if (filterValues.expMin != null && filterValues.expMin !== "") {
         if (Number(c.experience) < Number(filterValues.expMin)) return false;
       }
@@ -174,9 +165,22 @@ const parseFormattedNumber = (value) => {
       }
 
 // SINGLE Expected CTC filter (show all <= value)
+// Expected CTC filter WITH TYPE
 if (filterValues.expectedCtc != null && filterValues.expectedCtc !== "") {
-  const ctcNumeric = parseFormattedNumber(app.expectedCTC);
-  if (ctcNumeric > Number(filterValues.expectedCtc)) return false;
+  const expectedNumeric = parseFormattedNumber(app.expectedCTC);
+  const userGiven = Number(filterValues.expectedCtc);
+
+  // Type must match (Per Month / Per Annum / Per Hour)
+  if (
+    filterValues.expectedCtcType &&
+    app.expectedCTCType &&
+    app.expectedCTCType !== filterValues.expectedCtcType
+  ) {
+    return false;
+  }
+
+  // numeric filter: show all <= given
+  if (expectedNumeric > userGiven) return false;
 }
 
 
@@ -328,7 +332,7 @@ const SkeletonRows = () => {
                     <th className="px-3 py-2 whitespace-nowrap border-r text-right" style={{ borderColor: "#d8dce3" }}>Expected CTC / Rate</th>
                   </>
                 )}
-                <th className="px-3 py-2 whitespace-nowrap border-r" style={{ borderColor: "#d8dce3" }}>Source</th>
+                <th className="px-3 py-2 whitespace-nowrap border-r" style={{ borderColor: "#d8dce3" }}>Recruiter</th>
                 <th className="px-3 py-2 whitespace-nowrap border-r" style={{ borderColor: "#d8dce3" }}>Resume</th>
                 <th className="px-3 py-2 whitespace-nowrap">Submitted</th>
               </tr>
@@ -437,10 +441,20 @@ return (
 
     {/* LEFT: Fixed Filters (prevent shrinking) */}
     <div className="flex-shrink-0">
-      <MyJobCandidateAdvanceFilters
-        onApply={(filters) => setFilterValues(filters || {})}
-        jobCountry={job.country === "USA" ? "USA" : "IN"}
-      />
+  {job && (
+  <MyJobCandidateAdvanceFilters
+    onApply={(filters) => setFilterValues(filters || {})}
+    jobCountry={
+      ["USA", "US", "United States", "U.S.", "America"].includes(
+        (job.country || "").trim()
+      )
+        ? "USA"
+        : "IN"
+    }
+  />
+)}
+
+
     </div>
 
     {/* RIGHT: Main content */}

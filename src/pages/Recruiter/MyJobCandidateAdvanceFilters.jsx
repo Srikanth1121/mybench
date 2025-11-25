@@ -7,11 +7,11 @@ export default function MyJobCandidateAdvanceFilters({
 }) {
   // Filter state (renamed resumeSearch -> skillsSearch)
   const [skillsSearch, setSkillsSearch] = useState("");
-  const [location, setLocation] = useState("");
   const [expMin, setExpMin] = useState("");
   const [expMax, setExpMax] = useState("");
   const [notice, setNotice] = useState("");
   const [expectedCtc, setExpectedCtc] = useState("");
+  const [expectedCtcType, setExpectedCtcType] = useState("");
 const [visa, setVisa] = useState("");
   const [stateFilter, setStateFilter] = useState("");
 // --- Smart Experience Logic ---
@@ -84,11 +84,11 @@ const parseFormattedNumber = (value) => {
   }
 const filters = {
       skillsSearch: skillsSearch.trim(),
-      location: location.trim(),
       expMin: expMin === "" ? null : Number(expMin),
 expMax: expMax === "" ? null : Number(expMax),
 notice: notice || null,
       expectedCtc: expectedCtc ? parseFormattedNumber(expectedCtc) : null,
+      expectedCtcType: expectedCtcType || null,
 visa: jobCountry === "USA" ? (visa || null) : null,
 stateFilter: stateFilter || null,
 };
@@ -97,11 +97,11 @@ stateFilter: stateFilter || null,
 
   const handleClear = () => {
     setSkillsSearch("");
-    setLocation("");
     setExpMin("");
     setExpMax("");
     setNotice("");
    setExpectedCtc("");
+   setExpectedCtcType("");
     setVisa("");
     setStateFilter("");
     onApply({}); // clear parent filters
@@ -109,7 +109,8 @@ stateFilter: stateFilter || null,
 
   // Sidebar markup (static)
   return (
-      <div className="w-72 flex-shrink-0 self-start bg-white border-r border-slate-100 min-h-screen sticky top-0 overflow-y-auto p-4">
+     <div className="w-72 flex-shrink-0 bg-white border-r border-slate-100 h-screen overflow-y-auto p-4">
+
 
 
       <div className="mb-4">
@@ -137,17 +138,6 @@ stateFilter: stateFilter || null,
         <p className="text-xs text-slate-400 mt-1">Multi-keyword, case-insensitive.</p>
       </div>
 
-      {/* Location */}
-      <div className="mb-4">
-        <label className="text-xs font-medium text-slate-600">Location (city / state)</label>
-        <input
-          type="text"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="e.g. Hyderabad, TX, NJ"
-          className="mt-1 block w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-        />
-      </div>
 {/* State (Auto India/USA based) */}
 <div className="mb-4">
   <label className="text-xs font-medium text-slate-600">State</label>
@@ -223,10 +213,30 @@ stateFilter: stateFilter || null,
     className="mt-1 block w-full px-3 py-2 border rounded-md text-sm 
       focus:outline-none focus:ring-2 focus:ring-indigo-300"
   />
+  {/* Expected CTC Type */}
+<select
+  value={expectedCtcType}
+  onChange={(e) => setExpectedCtcType(e.target.value)}
+  className="mt-2 block w-full px-3 py-2 border rounded-md text-sm
+    focus:outline-none focus:ring-2 focus:ring-indigo-300"
+>
+  {jobCountry === "USA" ? (
+    <>
+      <option value="">Any Type</option>
+      <option value="Per Hour">Per Hour</option>
+      <option value="Per Annum">Per Annum</option>
+    </>
+  ) : (
+    <>
+      <option value="">Any Type</option>
+      <option value="Per Month">Per Month</option>
+      <option value="Per Annum">Per Annum</option>
+    </>
+  )}
+</select>
+
 </div>
-
-
- {/* Visa (only for USA) */}
+{/* Visa (only for USA) */}
       {jobCountry === "USA" && (
         <div className="mb-4">
           <label className="text-xs font-medium text-slate-600">Visa</label>

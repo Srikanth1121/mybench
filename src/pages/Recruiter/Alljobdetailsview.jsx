@@ -88,6 +88,61 @@ ${job.jobDescription}
   const [myCandidates, setMyCandidates] = useState([]);
   const [candidatesLoading, setCandidatesLoading] = useState(true);
   const [candidateSearch, setCandidateSearch] = useState("");
+// New confirmation modal states
+const [showConfirmModal, setShowConfirmModal] = useState(false);
+const [selectedCandidateForSubmit, setSelectedCandidateForSubmit] = useState(null);
+
+const [submitNoticePeriod, setSubmitNoticePeriod] = useState("");
+const [submitExpectedCTC, setSubmitExpectedCTC] = useState("");
+const [submitExpectedCTCType, setSubmitExpectedCTCType] = useState("");
+// ---------- Number formatting helpers ----------
+
+// keep existing Indian formatter if you have one; add international formatter:
+const formatInternationalNumber = (num) => {
+  // remove existing commas, keep digits only
+  num = String(num).replace(/,/g, "");
+  if (num === "" || isNaN(num)) return num;
+  // insert commas every 3 digits from right (1,234,567)
+  return num.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
+// Indian formatter (if you prefer to keep a separate one; optional if already present elsewhere)
+const formatIndianNumber = (num) => {
+  num = String(num).replace(/,/g, "");
+  if (num === "" || isNaN(num)) return num;
+  const lastThree = num.slice(-3);
+  const otherNumbers = num.slice(0, -3);
+  return (otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") || "") + (otherNumbers ? "," : "") + lastThree;
+};
+
+// Unified handler for the Expected CTC input inside confirm modal
+const handleExpectedCTCChange = (e) => {
+  let value = e.target.value.replace(/,/g, ""); // remove commas
+  value = value.replace(/\D/g, ""); // keep digits only
+
+  if (!value) {
+    setSubmitExpectedCTC("");
+    return;
+  }
+
+  if (selectedCandidateForSubmit?.country === "USA") {
+    // International 123,456,789 format
+    setSubmitExpectedCTC(
+      value.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    );
+  } else {
+    // Indian 12,34,567 format
+    const last3 = value.slice(-3);
+    const other = value.slice(0, -3);
+
+    const indianFormatted = other
+      ? other.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + last3
+      : last3;
+
+    setSubmitExpectedCTC(indianFormatted);
+  }
+};
+
 
   // simple submit-in-progress flag
   const [submittingId, setSubmittingId] = useState(null);
@@ -190,68 +245,80 @@ useEffect(() => {
      SUBMIT CANDIDATE
      - Prevent duplicate: check if an application already exists for (jobId, candidate.id)
   --------------------------- */
-  const submitCandidate = async (candidate) => {
-    if (!user) {
-      alert("Please sign in to submit candidates.");
-      return;
-    }
-    if (!jobId || !candidate?.id) {
-      alert("Invalid job or candidate.");
-      return;
-    }
+     const openConfirmModal = (candidate) => {
+  setSelectedCandidateForSubmit(candidate);
 
-    const confirm = window.confirm(
-      `Submit ${candidate.fullName || candidate.name} to "${job.jobTitle}"?`
+  // Auto-fill notice period from candidate
+  setSubmitNoticePeriod(candidate.noticePeriod || "");
+
+  // Auto-select CTC Type
+  if (candidate.country === "USA") {
+    setSubmitExpectedCTCType("Per Hour");
+  } else {
+    setSubmitExpectedCTCType("Per Month");
+  }
+
+  setShowConfirmModal(true);
+};
+  // -----------------------------------
+// FINAL SUBMISSION AFTER CONFIRM MODAL
+// -----------------------------------
+const submitFinalCandidate = async () => {
+  const candidate = selectedCandidateForSubmit;
+  if (!user || !candidate) return;
+
+  setSubmittingId(candidate.id);
+
+  try {
+    // Check duplicate
+    const dupQ = query(
+      collection(db, "applications"),
+      where("jobDocId", "==", jobId),
+      where("candidateId", "==", candidate.id)
     );
-    if (!confirm) return;
-
-    setSubmittingId(candidate.id);
-
-    try {
-      // check duplicates
-      // 1️⃣ Fetch recruiter profile
-const recruiterRef = doc(db, "users", user.uid);
-const recruiterSnap = await getDoc(recruiterRef);
-const recruiter = recruiterSnap.exists() ? recruiterSnap.data() : {};
-
-      const dupQ = query(
-        collection(db, "applications"),
-        where("jobDocId", "==", jobId),
-        where("candidateId", "==", candidate.id)
-      );
-      const dupSnap = await getDocs(dupQ);
-      if (!dupSnap.empty) {
-        alert("This candidate was already submitted for this job.");
-        setSubmittingId(null);
-        return;
-      }
-
-      // create application
-     await addDoc(collection(db, "applications"), {
-  jobDocId: jobId,
-  candidateId: candidate.id,
-  appliedByRecruiter: true,
-
-  // recruiter details
-  recruiterId: user.uid,
-  recruiterEmail: recruiter.email || user.email || "",
-  recruiterPhone: recruiter.mobile || "",
-  recruiterCompany: recruiter.company || "",
-
-  createdAt: serverTimestamp(),
-});
-
-
-      alert("✅ Candidate submitted successfully!");
-      // Optionally close modal or keep open to submit more - here we keep open
-      // setShowSubmitModal(false);
-    } catch (err) {
-      console.error("Error submitting candidate:", err);
-      alert("❌ Failed to submit candidate. Try again.");
-    } finally {
+    const dupSnap = await getDocs(dupQ);
+    if (!dupSnap.empty) {
+      alert("This candidate was already submitted for this job.");
       setSubmittingId(null);
+      return;
     }
-  };
+
+    // Recruiter profile
+    const recruiterRef = doc(db, "users", user.uid);
+    const recruiterSnap = await getDoc(recruiterRef);
+    const recruiter = recruiterSnap.exists() ? recruiterSnap.data() : {};
+
+    // SAVE IN FIRESTORE
+    await addDoc(collection(db, "applications"), {
+      jobDocId: jobId,
+      candidateId: candidate.id,
+      appliedByRecruiter: true,
+
+      recruiterId: user.uid,
+      recruiterEmail: recruiter.email || user.email || "",
+      recruiterPhone: recruiter.mobile || "",
+      recruiterCompany: recruiter.company || "",
+
+      // NEW FIELDS
+      candidateNoticePeriod: submitNoticePeriod,
+      expectedCTC: submitExpectedCTC,
+      expectedCTCType: submitExpectedCTCType,
+
+      createdAt: serverTimestamp(),
+    });
+
+    alert("✅ Candidate submitted successfully!");
+
+    setShowConfirmModal(false);
+    setShowSubmitModal(false);
+  } catch (err) {
+    console.error("Error submitting candidate:", err);
+    alert("❌ Failed to submit candidate. Try again.");
+  } finally {
+    setSubmittingId(null);
+  }
+};
+
 
   /* --------------------------
      Small UI helpers
@@ -314,19 +381,28 @@ const recruiter = recruiterSnap.exists() ? recruiterSnap.data() : {};
       {/* Actions (right aligned, Oracle style) */}
       <div className="flex items-center justify-end gap-3 mb-6">
         {canSubmit ? (
-          <button
-            onClick={() => setShowSubmitModal(true)}
-            className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-          >
-            Submit Bench Candidate
-          </button>
-        ) : (
-          <div className="text-xs text-slate-600">
-            {user
-              ? "You posted this job — you cannot submit to your own job."
-              : "Sign in to submit candidates."}
-          </div>
-        )}
+  <button
+    disabled={job.status !== "Active"}
+    onClick={() => {
+      if (job.status === "Active") setShowSubmitModal(true);
+    }}
+    className={`px-4 py-2 text-sm font-medium rounded-md
+      ${
+        job.status !== "Active"
+          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+          : "bg-indigo-600 text-white hover:bg-indigo-700"
+      }`}
+  >
+    Submit Bench Candidate
+  </button>
+) : (
+  <div className="text-xs text-slate-600">
+    {user
+      ? "You posted this job — you cannot submit to your own job."
+      : "Sign in to submit candidates."}
+  </div>
+)}
+
 
         <button
           onClick={() => window.print()}
@@ -641,7 +717,8 @@ const recruiter = recruiterSnap.exists() ? recruiterSnap.data() : {};
                 ) : (
                   <button
                     disabled={submittingId === c.id}
-                    onClick={() => submitCandidate(c)}
+                    onClick={() => openConfirmModal(c)}
+
                     className={`px-3 py-1.5 rounded-md text-xs font-medium ${
                       submittingId === c.id
                         ? "bg-slate-200 text-slate-500 cursor-not-allowed"
@@ -664,6 +741,90 @@ const recruiter = recruiterSnap.exists() ? recruiterSnap.data() : {};
           </div>
         </div>
       )}
+      {showConfirmModal && selectedCandidateForSubmit && (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={() => setShowConfirmModal(false)}
+      />
+
+      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h2 className="text-lg font-semibold mb-4">
+          Submit {selectedCandidateForSubmit.fullName}
+        </h2>
+
+        {/* Notice Period */}
+        <label className="block text-sm font-medium mb-1">Notice Period</label>
+<select
+  value={submitNoticePeriod}
+  onChange={(e) => setSubmitNoticePeriod(e.target.value)}
+  className="w-full border rounded px-3 py-2 mb-4"
+>
+  <option value="">Select Notice Period</option>
+  <option value="Immediate">Immediate</option>
+  <option value="0-15 Days">0–15 Days</option>
+  <option value="15-30 Days">15–30 Days</option>
+  <option value="30-60 Days">30–60 Days</option>
+  <option value="60-90 Days">60–90 Days</option>
+  <option value="90+ Days">90+ Days</option>
+</select>
+
+
+        {/* Expected CTC */}
+        <label className="block text-sm font-medium mb-1">
+          {selectedCandidateForSubmit.country === "USA"
+            ? "Expected Rate"
+            : "Expected CTC"}
+        </label>
+
+       <input
+  type="text"
+  value={submitExpectedCTC}
+  onChange={handleExpectedCTCChange}
+  className="w-full border rounded px-3 py-2 mb-4"
+  placeholder={
+    selectedCandidateForSubmit.country === "USA"
+      ? "e.g. 70 or 120,000"
+      : "e.g. 5,00,000"
+  }
+/>
+{/* CTC Type */}
+        <select
+          value={submitExpectedCTCType}
+          onChange={(e) => setSubmitExpectedCTCType(e.target.value)}
+          className="w-full border rounded px-3 py-2 mb-4"
+        >
+          {selectedCandidateForSubmit.country === "USA" ? (
+            <>
+              <option value="Per Hour">Per Hour</option>
+              <option value="Per Annum">Per Annum</option>
+            </>
+          ) : (
+            <>
+              <option value="Per Month">Per Month</option>
+              <option value="Per Annum">Per Annum</option>
+            </>
+          )}
+        </select>
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setShowConfirmModal(false)}
+            className="px-4 py-2 bg-gray-300 rounded"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={submitFinalCandidate}
+            className="px-4 py-2 bg-indigo-600 text-white rounded"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
     </div>
   );
 }

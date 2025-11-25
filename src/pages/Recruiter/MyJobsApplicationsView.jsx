@@ -38,71 +38,83 @@ export default function MyJobsApplicationsView() {
       FETCH APPLICATIONS
   --------------------------- */
   useEffect(() => {
-    if (!jobId) return;
+  if (!jobId) return;
 
-    const q = query(
-      collection(db, "applications"),
-      where("jobDocId", "==", jobId),
-      orderBy("createdAt", "desc")
-    );
+  const q = query(
+    collection(db, "applications"),
+    where("jobDocId", "==", jobId),
+    orderBy("createdAt", "desc")
+  );
 
-    const unsub = onSnapshot(q, async (snap) => {
-      const list = [];
+  const unsub = onSnapshot(q, async (snap) => {
+    // Load base application rows immediately (without candidate details)
+    const baseRows = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      candidate: null,          // placeholder
+      _loadingCandidate: true   // UI can use this
+    }));
 
-      for (const d of snap.docs) {
-        const app = { id: d.id, ...d.data() };
+    setApplications(baseRows); // ⭐ smooth immediate rendering
 
-        let c = null;
+    // Load candidate details in parallel (fast + smooth)
+    const fullRows = await Promise.all(
+      baseRows.map(async (app) => {
+        let candidate = null;
 
-        // 1. Direct Signup Users
-        if (app.candidateId) {
-          const userSnap = await getDoc(doc(db, "users", app.candidateId));
+        try {
+          // Direct user candidate
+          const userRef = doc(db, "users", app.candidateId || "");
+          const userSnap = await getDoc(userRef);
+
           if (userSnap.exists()) {
             const u = userSnap.data();
-            c = {
+            candidate = {
               name: u.name,
               email: u.email,
               phone: u.mobile,
               experience: u.experience || "",
               title: u.jobTitle || "",
               resumeUrl: u.resumeUrl || "",
+              country: u.country || ""
             };
+          } else {
+            // Bench candidate
+            const benchRef = doc(db, "candidates", app.candidateId || "");
+            const benchSnap = await getDoc(benchRef);
+
+            if (benchSnap.exists()) {
+              const b = benchSnap.data();
+              candidate = {
+                name: b.fullName,
+                email: b.email,
+                phone: b.mobile,
+                experience: b.experience,
+                title: b.jobTitle,
+                resumeUrl: b.resumeUrl,
+                country: b.country || ""
+              };
+            }
           }
+        } catch (e) {
+          console.error("Error loading candidate", e);
         }
 
-        // 2. Bench Candidates
-        if (!c && app.candidateId) {
-          const benchSnap = await getDoc(doc(db, "candidates", app.candidateId));
-          if (benchSnap.exists()) {
-            const b = benchSnap.data();
-           c = {
-  name: b.fullName,
-  email: b.email,
-  phone: b.mobile,
-  experience: b.experience,
-  title: b.jobTitle,
-  resumeUrl: b.resumeUrl,
-
-  // recruiter details come from the application (app)
-  recruiterEmail: app.recruiterEmail || "",
-  recruiterPhone: app.recruiterPhone || "",
-  recruiterCompany: app.recruiterCompany || "",
-};
-
-          }
-        }
-
-        list.push({
+        return {
           ...app,
-          candidate: c,
-        });
-      }
+          candidate,
+          _loadingCandidate: false
+        };
+      })
+    );
 
-      setApplications(list);
-    });
+    // Update filled-in data
+    setApplications(fullRows);
+  });
 
-    return () => unsub();
-  }, [jobId]);
+  return () => unsub();
+}, [jobId]);
+
 
   if (job === null) return <div className="p-6">Job not found.</div>;
   if (!job) return <div className="p-6">Loading job...</div>;
@@ -152,86 +164,318 @@ const timeAgo = (ts) => {
   const years = Math.floor(months / 12);
   return `${years} yr${years === 1 ? "" : "s"} ago`;
 };
+/* TABLE COMPONENT (Corporate Style) */
+  const ApplicationsTable = ({ data }) => {
+  const rowsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
+  // Reset page when data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [data]);
 
-  /* TABLE COMPONENT (Corporate Style) */
-  const ApplicationsTable = ({ data }) => (
-    <table className="w-full table-auto text-sm border rounded-lg overflow-hidden">
-      <thead className="bg-indigo-600 text-white">
-        <tr>
-          <th className="px-4 py-2 text-left w-1/4">Candidate</th>
-          <th className="px-4 py-2 text-left w-1/4">Email</th>
-          <th className="px-4 py-2 text-left w-24">Phone</th>
-          <th className="px-4 py-2 text-left w-16">Exp</th>
-          <th className="px-4 py-2 text-left w-24">Source</th>
-          <th className="px-4 py-2 text-left w-20">Resume</th>
-          <th className="px-4 py-2 text-left w-32">Submitted</th>
+  // Pagination math
+  const totalPages = Math.max(1, Math.ceil(data.length / rowsPerPage));
+  const startIdx = (currentPage - 1) * rowsPerPage;
+  const pageData = data.slice(startIdx, startIdx + rowsPerPage);
 
-        </tr>
-      </thead>
+  const showBenchExtras =
+    data.length > 0 && data[0].appliedByRecruiter === true;
 
-      <tbody>
-        {data.map((app, i) => (
-          <tr
-            key={app.id}
-            className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}
-          >
-            <td className="px-4 py-3">
-              <div className="font-medium">{app.candidate?.name || "—"}</div>
-              <div className="text-xs text-slate-500">
-                {app.candidate?.title || ""}
-              </div>
-            </td>
+  const goToPage = (p) => {
+    const page = Math.min(Math.max(1, p), totalPages);
+    setCurrentPage(page);
+  };
 
-            <td className="px-4 py-3">{app.candidate?.email || "—"}</td>
+  // Helper: render a limited set of page buttons when many pages exist
+  const renderPageButtons = () => {
+    // show up to 7 page buttons centered around current page
+    const maxButtons = 7;
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages = [];
+    const half = Math.floor(maxButtons / 2);
+    let start = Math.max(1, currentPage - half);
+    let end = start + maxButtons - 1;
+    if (end > totalPages) {
+      end = totalPages;
+      start = end - maxButtons + 1;
+    }
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
 
-            <td className="px-4 py-3">{app.candidate?.phone || "—"}</td>
+  return (
+    <div className="w-full bg-white">
+      {/* Table wrapper: no horizontal scroll */}
+      <div
+        className="w-full overflow-x-hidden"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <table className="w-full text-[13px] border-collapse">
+          {/* HEADER */}
+          <thead>
+            <tr
+              className="font-semibold text-left uppercase tracking-wide"
+              style={{
+                backgroundColor: "#e7f0ff",
+                color: "#2d3e50",
+                borderBottom: "1px solid #d8dce3",
+              }}
+            >
+              <th
+                className="px-3 py-2 whitespace-nowrap border-r"
+                style={{ borderColor: "#d8dce3" }}
+              >
+                Candidate
+              </th>
 
-            <td className="px-4 py-3">
-              {app.candidate?.experience
-                ? `${app.candidate.experience} yrs`
-                : "—"}
-            </td>
+              <th
+                className="px-3 py-2 whitespace-nowrap border-r"
+                style={{ borderColor: "#d8dce3" }}
+              >
+                Email
+              </th>
 
-            <td className="px-4 py-3">
- {app.appliedByRecruiter ? (
-  <div>
-    <div className="font-medium text-slate-800">{app.recruiterEmail || "—"}</div>
-    <div className="text-xs text-slate-500">{app.recruiterPhone || ""}</div>
-    <div className="text-xs text-slate-500">{app.recruiterCompany || ""}</div>
-  </div>
-) : (
-  "Direct"
-)}
+              <th
+                className="px-3 py-2 whitespace-nowrap border-r"
+                style={{ borderColor: "#d8dce3" }}
+              >
+                Phone
+              </th>
 
-</td>
+              <th
+                className="px-3 py-2 whitespace-nowrap border-r text-right"
+                style={{ borderColor: "#d8dce3" }}
+              >
+                Exp
+              </th>
 
+              {showBenchExtras && (
+                <>
+                  <th
+                    className="px-3 py-2 whitespace-nowrap border-r"
+                    style={{ borderColor: "#d8dce3" }}
+                  >
+                    Notice Period
+                  </th>
 
-            <td className="px-4 py-3">
-              {app.candidate?.resumeUrl ? (
-                <a
-                  href={app.candidate.resumeUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-indigo-600 underline"
-                >
-                  View
-                </a>
-              ) : (
-                "—"
+                  <th
+                    className="px-3 py-2 whitespace-nowrap border-r text-right"
+                    style={{ borderColor: "#d8dce3" }}
+                  >
+                    Expected CTC / Rate
+                  </th>
+                </>
               )}
-            </td>
-            <td className="px-4 py-3 text-slate-600">
-  {app.createdAt
-    ? timeAgo(app.createdAt.toDate())
-    : "—"}
-</td>
 
-          </tr>
-        ))}
-      </tbody>
-    </table>
+              <th
+                className="px-3 py-2 whitespace-nowrap border-r"
+                style={{ borderColor: "#d8dce3" }}
+              >
+                Source
+              </th>
+
+              <th
+                className="px-3 py-2 whitespace-nowrap border-r"
+                style={{ borderColor: "#d8dce3" }}
+              >
+                Resume
+              </th>
+
+              <th className="px-3 py-2 whitespace-nowrap">Submitted</th>
+            </tr>
+          </thead>
+
+          {/* BODY */}
+          <tbody>
+            {pageData.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={showBenchExtras ? 9 : 7}
+                  className="px-3 py-4 text-center text-slate-500"
+                >
+                  No applications to show.
+                </td>
+              </tr>
+            ) : (
+              pageData.map((app, idx) => {
+                // compute global index for potential use
+                const globalIndex = startIdx + idx;
+                const isOdd = globalIndex % 2 === 1;
+                return (
+                  <tr
+                    key={app.id}
+                    style={{
+                      borderBottom: "1px solid #d8dce3",
+                      height: "38px",
+                      backgroundColor: isOdd ? "#f3f4f6" : "#ffffff",
+                      transition: "background-color 0.15s ease",
+                    }}
+                    className="hover:bg-[#f5f7fa]"
+                  >
+                    {/* Candidate */}
+                    <td
+                      className="px-3 whitespace-nowrap border-r"
+                      style={{ borderColor: "#d8dce3" }}
+                    >
+                      <div className="font-medium text-slate-800 truncate max-w-[240px]">
+                        {app.candidate?.name || "—"}
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate max-w-[240px]">
+                        {app.candidate?.title || ""}
+                      </div>
+                    </td>
+
+                    {/* Email */}
+                    <td
+                      className="px-3 whitespace-nowrap border-r truncate max-w-[200px]"
+                      style={{ borderColor: "#d8dce3" }}
+                    >
+                      {app.candidate?.email || "—"}
+                    </td>
+
+                    {/* Phone */}
+                    <td
+                      className="px-3 whitespace-nowrap border-r"
+                      style={{ borderColor: "#d8dce3" }}
+                    >
+                      {app.candidate?.phone || "—"}
+                    </td>
+
+                    {/* Experience */}
+                    <td
+                      className="px-3 whitespace-nowrap border-r text-right"
+                      style={{ borderColor: "#d8dce3" }}
+                    >
+                      {app.candidate?.experience
+                        ? `${app.candidate.experience} yrs`
+                        : "—"}
+                    </td>
+
+                    {/* Bench Extras */}
+                    {showBenchExtras && (
+                      <>
+                        <td
+                          className="px-3 whitespace-nowrap border-r"
+                          style={{ borderColor: "#d8dce3" }}
+                        >
+                          {app.candidateNoticePeriod || "—"}
+                        </td>
+
+                        <td
+                          className="px-3 whitespace-nowrap border-r text-right"
+                          style={{ borderColor: "#d8dce3" }}
+                        >
+                          {app.expectedCTC
+                            ? `${app.candidate?.country === "USA" ? "$" : "₹"}${
+                                app.expectedCTC
+                              } / ${app.expectedCTCType}`
+                            : "—"}
+                        </td>
+                      </>
+                    )}
+
+                    {/* Source */}
+                    <td
+                      className="px-3 whitespace-nowrap border-r"
+                      style={{ borderColor: "#d8dce3" }}
+                    >
+                      {app.appliedByRecruiter ? (
+                        <div className="text-xs leading-tight">
+                          <div className="font-medium">
+                            {app.recruiterEmail || "—"}
+                          </div>
+                          <div>{app.recruiterPhone || ""}</div>
+                          <div>{app.recruiterCompany || ""}</div>
+                        </div>
+                      ) : (
+                        "Direct"
+                      )}
+                    </td>
+
+                    {/* Resume */}
+                    <td
+                      className="px-3 whitespace-nowrap border-r"
+                      style={{ borderColor: "#d8dce3" }}
+                    >
+                      {app.candidate?.resumeUrl ? (
+                        <a
+                          href={app.candidate.resumeUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline"
+                          style={{ color: "#1a63d5" }}
+                        >
+                          View
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
+                    {/* Submitted */}
+                    <td className="px-3 whitespace-nowrap text-slate-600">
+                      {app.createdAt ? timeAgo(app.createdAt.toDate()) : "—"}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* PAGINATION - Centered (Previous | 1 | 2 | 3 | Next) */}
+      <div className="flex items-center justify-center gap-3 mt-4 py-3 border-t" style={{ borderColor: "#e8e8ef" }}>
+        {/* Previous */}
+        <button
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-4 py-2 rounded-xl font-medium border transition-all duration-200 ${
+            currentPage === 1
+              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+              : "bg-white text-gray-700 border-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 shadow-sm"
+          }`}
+        >
+          ← Previous
+        </button>
+
+        {/* Page numbers */}
+        <div className="flex items-center gap-1">
+          {renderPageButtons().map((p) => (
+            <button
+              key={p}
+              onClick={() => goToPage(p)}
+              className={`px-3 py-1.5 rounded-lg font-medium border text-sm transition-all duration-200 ${
+                currentPage === p
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+
+        {/* Next */}
+        <button
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-4 py-2 rounded-xl font-medium border transition-all duration-200 ${
+            currentPage === totalPages
+              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+              : "bg-white text-gray-700 border-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 shadow-sm"
+          }`}
+        >
+          Next →
+        </button>
+      </div>
+    </div>
   );
+};
+
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -248,17 +492,10 @@ const timeAgo = (ts) => {
         </div>
 
         <div className="text-right">
-          <div className="text-xs text-slate-500">Job ID: {job.jobId}</div>
-          <Link
-            to="/recruiter/dashboard/my-jobs"
-            className="text-xs text-indigo-600 hover:underline mt-2 inline-block"
-          >
-            ← Back to My Jobs
-          </Link>
-        </div>
-      </div>
-
-      {/* TABS */}
+  <div className="text-xs text-slate-500">Job ID: {job.jobId}</div>
+</div>
+ </div>
+{/* TABS */}
       <div className="flex border-b mt-6">
         <button
           onClick={() => setActiveTab("overview")}

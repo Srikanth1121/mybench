@@ -77,7 +77,10 @@ useEffect(() => {
     gender: editingCandidate.gender || "",
     visaType: editingCandidate.visaType || "",
     linkedin: editingCandidate.linkedin || "",
-    resumeFile: null,
+    currentCTC: editingCandidate.currentCTC || "",
+currentCTCType: editingCandidate.currentCTCType || "",
+noticePeriod: editingCandidate.noticePeriod || "",
+resumeFile: null,
     resumeText: editingCandidate.resumeText || "",
   });
 }, [editingCandidate]);
@@ -92,7 +95,30 @@ useEffect(() => {
       [name]: files ? files[0] : value,
     }));
   };
+const formatIndianNumber = (num) => {
+  num = num.replace(/,/g, ""); // remove old commas
+  if (isNaN(num) || num === "") return num;
 
+  const lastThree = num.slice(-3);
+  const otherNumbers = num.slice(0, -3);
+
+  return (
+    (otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",")) +
+    (otherNumbers ? "," : "") +
+    lastThree
+  );
+};
+
+// Handle CTC input formatting
+const handleCTCChange = (e) => {
+  let value = e.target.value.replace(/\D/g, ""); // only digits
+  let formatted = formatIndianNumber(value);
+
+  setFormData((prev) => ({
+    ...prev,
+    currentCTC: formatted,
+  }));
+};
   const handleSubmit = async (e) => {
   e.preventDefault();
 
@@ -205,8 +231,7 @@ const candidateData = {
   email: formData.email.trim(),
   mobile: formData.mobile.trim(),
 normalizedMobile: formData.mobile.replace(/\D/g, ""), // store digits-only version
-
-  country: recruiterCountry, // 👈 auto-filled, no user selection
+country: recruiterCountry, // 👈 auto-filled, no user selection
   visaType: recruiterCountry === "USA" ? formData.visaType : null,
   experience: formData.experience.trim(),
   jobTitle: formData.jobTitle.trim(),
@@ -215,7 +240,10 @@ normalizedMobile: formData.mobile.replace(/\D/g, ""), // store digits-only versi
   qualification: formData.qualification.trim(),
   gender: formData.gender,
   linkedin: formData.linkedin.trim(),
-  resumeType: formData.resumeFile ? "upload" : "paste",
+  currentCTC: formData.currentCTC || "",
+currentCTCType: formData.currentCTCType || "",
+noticePeriod: formData.noticePeriod || "",
+resumeType: formData.resumeFile ? "upload" : "paste",
   resumeText: parsedResumeText,
   status: "Active",
   normalizedEmail: formData.email.trim().toLowerCase(),
@@ -243,13 +271,13 @@ if (editingCandidate && editingCandidate.id) {
 
 return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-  <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-5 overflow-y-auto max-h-[80vh] relative text-[13px]">
-
-  {/* X (Close) Button */}
+  <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl p-8 overflow-y-auto max-h-[85vh] relative text-[16px]">
+{/* X (Close) Button */}
 {/* Sleek Close (Corporate Style) */}
 <button
   onClick={onClose}
-  className="absolute top-3 right-4 text-gray-500 hover:text-gray-700 transition"
+  className="absolute top-5 right-6 text-gray-400 hover:text-gray-600 transition transform hover:scale-110"
+
   aria-label="Close"
 >
   <svg
@@ -267,31 +295,35 @@ return (
 
 
 
-  <h2 className="text-2xl font-semibold mb-6">Add Candidate</h2>
+  <h2 className="text-3xl font-bold mb-6 text-gray-900">Add Candidate</h2>
 
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Full Name */}
-          <input
-            type="text"
-            name="fullName"
-            placeholder="Full Name"
-            value={formData.fullName}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-1"
-            required
-          />
 
-          {/* Email ID */}
-          <input
-            type="email"
-            name="email"
-            placeholder="Email ID"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-3 py-1"
-            required
-          />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  {/* Full Name */}
+  <input
+    type="text"
+    name="fullName"
+    placeholder="Full Name"
+    value={formData.fullName}
+    onChange={handleChange}
+    className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
+    required
+  />
+
+  {/* Email ID */}
+  <input
+    type="email"
+    name="email"
+    placeholder="Email ID"
+    value={formData.email}
+    onChange={handleChange}
+    className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
+    required
+  />
+</div>
+
 
           {/* Mobile Number */}
          {/* Country */}
@@ -331,7 +363,7 @@ return (
 
       setFormData((prev) => ({ ...prev, mobile: input }));
     }}
-    className="flex-1 border rounded-lg px-3 py-2"
+    className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
     required
   />
 </div>
@@ -353,7 +385,7 @@ return (
   }}
   min="0"
   max="50"
-  className="w-full border rounded-lg px-3 py-1"
+  className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
   required
 />
 
@@ -364,10 +396,71 @@ return (
               placeholder="Job Title"
               value={formData.jobTitle}
               onChange={handleChange}
-              className="w-full border rounded-lg px-3 py-1"
+              className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
               required
             />
           </div>
+{/* New Fields: Current CTC (amount + type) and Notice Period */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+  {/* Current CTC Amount + CTC Type */}
+  <div className="flex gap-2">
+
+    {/* Amount */}
+    <input
+      type="text"
+      name="currentCTC"
+      placeholder="Current CTC"
+      value={formData.currentCTC || ""}
+      onChange={handleCTCChange}
+className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
+      required
+    />
+
+    {/* Type */}
+    <select
+  name="currentCTCType"
+  value={formData.currentCTCType || ""}
+  onChange={handleChange}
+  className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
+  required
+>
+  <option value="">Type</option>
+
+  {formData.country === "USA" ? (
+    <>
+      <option value="Per Hour">Per Hour</option>
+      <option value="Per Annum">Per Annum</option>
+    </>
+  ) : (
+    <>
+      <option value="Per Month">Per Month</option>
+      <option value="Per Annum">Per Annum</option>
+    </>
+  )}
+</select>
+
+
+  </div>
+
+  {/* Notice Period */}
+  <select
+    name="noticePeriod"
+    value={formData.noticePeriod || ""}
+    onChange={handleChange}
+    className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
+    required
+  >
+    <option value="">Select Notice Period</option>
+    <option value="Immediate">Immediate</option>
+    <option value="0-15 Days">0–15 Days</option>
+    <option value="15-30 Days">15–30 Days</option>
+    <option value="30-60 Days">30–60 Days</option>
+    <option value="60-90 Days">60–90 Days</option>
+    <option value="90+ Days">90+ Days</option>
+  </select>
+
+</div>
 
           {/* City & State */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -377,7 +470,7 @@ return (
               placeholder="Current City"
               value={formData.city}
               onChange={handleChange}
-              className="w-full border rounded-lg px-3 py-1"
+              className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
               required
             />
 
@@ -395,9 +488,46 @@ return (
   placeholder="Select or type State"
   isSearchable
   required
-/>
 
-          </div>
+  styles={{
+    control: (base) => ({
+      ...base,
+      backgroundColor: "#f9fafb",          // bg-gray-50
+      borderColor: "#4b5563",              // border-gray-600
+      borderWidth: "1px",
+      borderRadius: "0.5rem",              // rounded-lg
+      minHeight: "52px",                   // same height as py-3 input
+      paddingLeft: "0.5rem",               // px-4
+      paddingRight: "0.5rem",
+      fontSize: "16px",                    // text-[16px]
+      boxShadow: "none",
+      "&:hover": { borderColor: "#374151" } // darker hover
+    }),
+
+    valueContainer: (base) => ({
+      ...base,
+      paddingLeft: "0px",
+    }),
+
+    input: (base) => ({
+      ...base,
+      color: "#111827", // text-gray-900
+    }),
+
+    placeholder: (base) => ({
+      ...base,
+      color: "#6b7280", // text-gray-500
+      fontSize: "16px",
+    }),
+
+    singleValue: (base) => ({
+      ...base,
+      color: "#111827",
+      fontSize: "16px",
+    }),
+  }}
+/>
+  </div>
 
           {/* Qualification & Gender */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -407,7 +537,8 @@ return (
               placeholder="Highest Qualification"
               value={formData.qualification}
               onChange={handleChange}
-              className="w-full border rounded-lg px-3 py-1"
+              className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]
+"
               required
             />
 
@@ -415,7 +546,7 @@ return (
               name="gender"
               value={formData.gender}
               onChange={handleChange}
-              className="w-full border rounded-lg px-3 py-1"
+              className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
               required
             >
               <option value="">Select Gender</option>
@@ -435,7 +566,7 @@ return (
     placeholder="https://www.linkedin.com/in/username"
     value={formData.linkedin}
     onChange={handleChange}
-    className="w-full border rounded-lg px-3 py-1"
+    className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
   />
 </div>
 
@@ -447,7 +578,7 @@ return (
     name="visaType"
     value={formData.visaType}
     onChange={handleChange}
-    className="w-full border rounded-lg px-3 py-2 appearance-none"
+    className="border border-gray-600 bg-gray-50 rounded-lg px-4 py-3 text-[16px]"
     required
   >
     <option value="">Select VISA Type</option>
@@ -511,7 +642,8 @@ return (
                 placeholder="Paste resume text here..."
                 value={formData.resumeText}
                 onChange={handleChange}
-                className="w-full border rounded-lg px-3 py-2 min-h-[120px]"
+                className="w-full border rounded-lg px-4 py-3 text-[15px] min-h-[140px]"
+
               />
             )}
           </div>
@@ -520,7 +652,8 @@ return (
           <div className="flex justify-end space-x-3 mt-6">
             <button
               type="button"
-              className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium"
+
               onClick={onClose}
             >
               Cancel
@@ -528,7 +661,8 @@ return (
 
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-sm"
+
             >
               Save Candidate
             </button>

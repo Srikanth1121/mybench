@@ -458,7 +458,9 @@ return (
     </div>
 
     {/* RIGHT: Main content */}
-    <div className="flex-1 overflow-y-auto px-10 py-6 max-w-6xl ml-6">
+    <div className="flex-1 overflow-y-auto p-4">
+
+
 {/* HEADER */}
       <div className="flex items-start justify-between gap-4">
         <div>

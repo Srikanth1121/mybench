@@ -31,6 +31,8 @@ import ApplicationDetails from "./pages/Candidate/ApplicationDetails";
 import CandidateNavbar from "./pages/Candidate/CandidateNavbar";
 
 import PublicAllCandidates from "./pages/Public/PublicAllCandidates";
+import CandidateSearch from "./pages/CandidateSearch/CandidateSearch";
+
 
 function App() {
   return (
@@ -87,6 +89,7 @@ function App() {
           <Route path="my-jobs" element={<RecruiterMyJobs />} />
           <Route path="all-jobs" element={<RecruiterAllJobsUSA />} />
           <Route path="all-jobs-india" element={<RecruiterAllJobsIndia />} />
+<Route path="candidate-search" element={<CandidateSearch />} />
 
           <Route path="profile" element={<RecruiterProfile />} />
           <Route path="job/:jobId" element={<MyJobsApplicationsView />} />

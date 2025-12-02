@@ -29,7 +29,7 @@ export default function SearchBar({
 
   return (
     <div className="w-full bg-white rounded-2xl shadow-sm p-4 mb-4">
-      <label className="block text-sm font-medium mb-2">Boolean Search</label>
+      <label className="block text-sm font-medium mb-2">Skill Search</label>
 
       <input
         type="text"

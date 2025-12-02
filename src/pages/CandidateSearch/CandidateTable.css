@@ -1,0 +1,220 @@
+/* -----------------------------------------
+   Candidate Table Styles (Excel UI + Blur)
+   ----------------------------------------- */
+.table-container {
+  background: #fff;
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  width: 100%;
+}
+
+/* TABLE */
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  color: #2d2d2d;
+  table-layout: fixed;
+}
+
+.excel-table thead {
+  border-bottom: 2px solid #3a0f52;
+}
+
+.excel-table thead tr {
+  background: #4b1d63;
+  color: white;
+  font-weight: 600;
+}
+
+.excel-table th {
+  padding: 12px 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.excel-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e5e5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excel-table tbody tr:hover {
+  background: #f4edf9;
+  transition: 0.18s ease-in-out;
+}
+
+/* Name and Skills */
+.name-cell {
+  font-weight: 600;
+  color: #2a2a2a;
+}
+
+.skills-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.skill-chip {
+  background: #f3f3f6;
+  color: #333;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Contact text */
+.contact-text {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* Action Button */
+.view-btn {
+  background: #4b1d63;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.view-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.view-btn:hover {
+  background: #3e184f;
+}
+
+/* Blur + clear */
+.blur {
+  filter: blur(4px);
+  opacity: 0.55;
+  user-select: none;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.clear {
+  filter: blur(0px);
+  opacity: 1;
+  transition: 0.25s ease;
+}
+
+/* ----------------------------
+   Confirmation modal (inline)
+   ---------------------------- */
+.ct-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.ct-modal {
+  width: 420px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  padding: 20px;
+}
+
+.ct-modal h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.ct-modal p {
+  margin: 0 0 16px 0;
+  color: #444;
+  font-size: 14px;
+}
+
+.ct-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.ct-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+}
+
+.ct-btn-cancel {
+  background: #f3f3f3;
+  color: #333;
+}
+
+.ct-btn-confirm {
+  background: #4b1d63;
+  color: white;
+}
+
+.ct-btn-confirm:hover { background: #3e184f; }
+.bench-tag {
+  background: #fff3cd;
+  color: #856404;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.direct-tag {
+  background: #d4edda;
+  color: #155724;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.recruiter-info {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #555;
+}
+
+.rec-line {
+  margin: 0;
+}
+.excel-table th, 
+.excel-table td {
+  white-space: nowrap;
+  padding: 10px 12px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+.excel-table th,
+.excel-table td {
+  padding: 2px 4px !important;
+  font-size: 13px;
+}

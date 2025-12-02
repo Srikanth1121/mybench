@@ -11,6 +11,7 @@ import { runCandidateSearch } from "./candidateSearchService";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { getAuth } from "firebase/auth";
+import CandidateTable from "./CandidateTable";
 
 export default function CandidateSearch() {
   // Boolean Search Query
@@ -148,14 +149,7 @@ async function handleUnlock() {
         ) : candidates.length === 0 ? (
           <EmptyState onClear={clearAll} />
         ) : (
-          <CandidateList
-  candidates={candidates}
-  onView={(candidate) => {
-    setSelectedCandidate(candidate);
-    setDrawerOpen(true);
-  }}
-  onUnlock={(candidate) => console.log("Unlocking:", candidate)}
-/>
+  <CandidateTable candidates={candidates} />
 
         )}
       </div>

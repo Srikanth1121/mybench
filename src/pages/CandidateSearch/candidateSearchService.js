@@ -1,3 +1,4 @@
+// candidateSearchService.js
 import { getDocs, collection, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { parseBooleanQuery } from "./booleanParser";
@@ -6,8 +7,10 @@ import { parseBooleanQuery } from "./booleanParser";
  * MAIN SEARCH FUNCTION
  */
 export async function runCandidateSearch(queryText, filters) {
+  // Parse boolean query once
   const parsed = parseBooleanQuery(queryText);
 
+  // STEP 1 & 2: fetch candidates
   const benchCandidates = await fetchBenchCandidates(filters);
   const directCandidates = await fetchDirectCandidates(filters);
 
@@ -19,6 +22,77 @@ export async function runCandidateSearch(queryText, filters) {
   // Attach recruiter details
   allCandidates = await attachRecruiterInfo(allCandidates);
 
+  // --- START: GLOBAL NOT post-filter (safe & idempotent) ---
+  // Collect NOT terms from parser output (cover both parsed.not and groups.not)
+  const globalNotTerms = [];
+  if (parsed) {
+    if (Array.isArray(parsed.not)) globalNotTerms.push(...parsed.not);
+    if (Array.isArray(parsed.groups)) {
+      parsed.groups.forEach((g) => {
+        if (Array.isArray(g.not)) globalNotTerms.push(...g.not);
+      });
+    }
+  }
+
+  // Normalize + dedupe
+  const globalNot = [
+    ...new Set(
+      globalNotTerms
+        .filter(Boolean)
+        .map((t) => t.toString().trim().toLowerCase())
+    ),
+  ];
+
+  if (globalNot.length > 0) {
+    // Local matcher (same logic as hasWord) to avoid moving functions around
+    function hasWordLocal(text, term) {
+      if (!term) return false;
+      const t = (term || "").toString().trim();
+      if (!t) return false;
+      const words = t
+        .split(/\s+/)
+        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+      const pattern = `\\b${words.join("\\s+")}\\b`;
+      const regex = new RegExp(pattern, "i");
+      return regex.test(text);
+    }
+
+    // Build normalized searchText for each candidate and filter out matches
+    allCandidates = allCandidates.filter((cand) => {
+      const searchText = [
+        cand.fullName,
+        cand.city,
+        cand.state,
+        cand.currentCompany,
+        cand.company,
+        cand.employerName,
+        cand.clientName,
+        cand.projectDetails,
+        ...(cand.skills || []),
+        cand.resumeText,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\{[^}]+\}/g, " ")
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .replace(/\/\/.*$/gm, " ")
+        .replace(/[^\w\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      for (const nt of globalNot) {
+        if (hasWordLocal(searchText, nt)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+  // --- END: GLOBAL NOT post-filter ---
+
+  // Finally apply client-side filters and boolean search groups
   return allCandidates
     .filter((c) => applyClientFilters(c, filters))
     .filter((c) => applyBooleanSearch(c, parsed));
@@ -51,10 +125,7 @@ async function fetchDirectCandidates(filters) {
 
   const colRef = collection(db, "users");
 
-  const base = [
-    where("role", "==", "candidate"),
-    where("country", "==", "India"),
-  ];
+  const base = [where("role", "==", "candidate"), where("country", "==", "India")];
 
   const q = query(colRef, ...base);
   const snap = await getDocs(q);
@@ -104,7 +175,7 @@ async function attachRecruiterInfo(candidates) {
         results.push(cand);
       }
     } catch (e) {
-      console.error("Recruiter fetch failed:", e);
+      // swallow fetch errors and return candidate as-is
       results.push(cand);
     }
   }
@@ -148,15 +219,89 @@ function applyClientFilters(c, filters) {
 /**
  * STEP 5 — BOOLEAN SEARCH
  */
+/**
+ * BOOLEAN SEARCH USING OR-GROUPS
+ * parsed.groups = [ { and:[], not:[] }, ... ]
+ */
+
+// --- robust word/phrase matcher ---
+function hasWord(text, term) {
+  if (!term) return false;
+
+  // Normalize inputs
+  const t = (term || "").toString().trim();
+  if (!t) return false;
+
+  // Escape each word and join with \s+ so phrases like "software engineers"
+  // match even if there's \n or multiple spaces between words.
+  const words = t.split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+  // Anchor the phrase to word boundaries on both ends.
+  const pattern = `\\b${words.join("\\s+")}\\b`;
+  const regex = new RegExp(pattern, "i");
+  return regex.test(text);
+}
+
 function applyBooleanSearch(candidate, parsed) {
-  const { and, or, not } = parsed;
-  const resume = (candidate.resumeText || "").toLowerCase();
+  if (!parsed || !parsed.groups || parsed.groups.length === 0) {
+    return true;
+  }
 
-  if (and.length && !and.every((t) => resume.includes(t))) return false;
-  if (or.length && !or.some((t) => resume.includes(t))) return false;
-  if (not.length && !not.every((t) => !resume.includes(t))) return false;
+  // Build the searchable text once
+  let searchText = [
+    candidate.fullName,
+    candidate.city,
+    candidate.state,
+    candidate.currentCompany,
+    candidate.company,
+    candidate.employerName,
+    candidate.clientName,
+    candidate.projectDetails,
+    ...(candidate.skills || []),
+    candidate.resumeText,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-  return true;
+  // Normalize: remove tags/comments/punctuation and collapse whitespace
+  searchText = searchText
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\{[^}]+\}/g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/.*$/gm, " ")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Evaluate each OR group (a candidate passes if any group evaluates true)
+  for (const group of parsed.groups) {
+    const { and = [], not = [] } = group;
+
+    // AND part: if there are no AND terms treat it as true (so NOT-only groups work)
+    const matchAnd =
+      and.length === 0
+        ? true
+        : and.every((term) => {
+            return hasWord(searchText, term);
+          });
+
+    // NOT part: candidate must NOT match any of these
+    const matchNot =
+      not.length === 0
+        ? true
+        : not.every((term) => {
+            return !hasWord(searchText, term);
+          });
+
+    const final = matchAnd && matchNot;
+
+    if (final) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

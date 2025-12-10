@@ -18,7 +18,9 @@ const RecruiterAllJobsIndia = () => {
   const [selectedStatus, setSelectedStatus] = useState("Active");
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 const navigate = useNavigate();
+
 
   const jobsPerPage = 10;
 
@@ -26,6 +28,9 @@ const navigate = useNavigate();
      FETCH INDIA JOBS BASED ON STATUS
   ------------------------------------------------*/
   useEffect(() => {
+    setLoading(true);          // ⭐ CLEAR OLD STATE
+    setJobs([]);               // ⭐ REMOVE OLD USA/INDIA JOBS
+    setFilteredJobs([]);       // ⭐ PREVENT OLD UI FLASH
     let q;
 
     if (selectedStatus === "All") {
@@ -53,6 +58,7 @@ const list = snapshot.docs
 
 
 setJobs(list);
+setLoading(false);
 
     });
 
@@ -112,6 +118,27 @@ setJobs(list);
 
     return `${month} ${day}, ${year}, ${hours}:${minutes} ${ampm}`;
   };
+if (loading) {
+  return (
+    <div className="px-6 py-4 animate-pulse">
+
+      {/* Header skeleton */}
+      <div className="h-10 bg-gray-200 rounded-lg mb-4"></div>
+
+      {/* Rows skeleton */}
+      <div className="space-y-3">
+        {[...Array(8)].map((_, i) => (
+          <div
+            key={i}
+            className="h-12 bg-gray-200 rounded-md"
+          ></div>
+        ))}
+      </div>
+
+    </div>
+  );
+}
+
 
   return (
     <div className="px-6 py-0">

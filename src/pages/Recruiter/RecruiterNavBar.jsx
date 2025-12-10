@@ -79,14 +79,19 @@ export default function RecruiterNavBar() {
           >
             My Candidates
           </NavLink>
-          <NavLink
-  to={recruiter?.country === "India"
-        ? "/recruiter/dashboard/all-jobs-india"
-        : "/recruiter/dashboard/all-jobs"}
+         <NavLink
+  to={
+    recruiter
+      ? (recruiter.country === "India"
+          ? "/recruiter/dashboard/all-jobs-india"
+          : "/recruiter/dashboard/all-jobs")
+      : "/recruiter/dashboard" // temporary safe route
+  }
   className={({ isActive }) => (isActive ? activeLink : linkClass)}
 >
   All Jobs
 </NavLink>
+
 
           <NavLink
             to="/recruiter/dashboard/my-jobs"

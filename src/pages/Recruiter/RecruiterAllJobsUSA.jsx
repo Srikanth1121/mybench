@@ -18,6 +18,7 @@ const RecruiterAllJobsUSA = () => {
   const [selectedStatus, setSelectedStatus] = useState("Active");
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 const navigate = useNavigate();
 
   const jobsPerPage = 10;
@@ -26,6 +27,10 @@ const navigate = useNavigate();
      STEP 1: Fetch USA Jobs in Real-Time
   -------------------------------------------------------------*/
   useEffect(() => {
+    setLoading(true);          // ⭐ CLEAR OLD STATE
+    setJobs([]);               // ⭐ REMOVE OLD USA/INDIA JOBS
+    setFilteredJobs([]);       // ⭐ PREVENT OLD UI FLASH
+
     let q;
 
     if (selectedStatus === "All") {
@@ -54,6 +59,8 @@ const navigate = useNavigate();
     .filter((job) => job.recruiterId !== user?.uid); // ⭐ REMOVE your own jobs
 
   setJobs(list);
+  setLoading(false);
+
 });
 
 
@@ -110,7 +117,14 @@ const navigate = useNavigate();
 
     return `${month} ${day}, ${year}, ${hours}:${minutes} ${ampm}`;
   };
-
+// ⭐ ADD THIS RIGHT HERE
+if (loading) {
+  return (
+    <div className="p-6 text-gray-600">
+      Loading jobs...
+    </div>
+  );
+}
   return (
     <div className="px-6 py-0">
       

@@ -1,6 +1,7 @@
 // src/pages/Recruiter/RecruiterDashboard.jsx
 import React, { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+
 import RecruiterNavBar from "./RecruiterNavBar";
 import RecruiterInfoModal from "./RecruiterInfoModal"; // ✅ import modal
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -16,6 +17,8 @@ export default function RecruiterDashboard() {
   const [recruiterData, setRecruiterData] = useState(null);
 
   const auth = getAuth();
+  const navigate = useNavigate();
+const location = useLocation();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -32,6 +35,17 @@ export default function RecruiterDashboard() {
     ...data,
     id: user.uid, // add recruiter UID
   });
+ 
+// ⭐ Redirect only when user is exactly on /recruiter/dashboard
+if (location.pathname === "/recruiter/dashboard") {
+  const target =
+    data.country === "India"
+      ? "/recruiter/dashboard/all-jobs-india"
+      : "/recruiter/dashboard/all-jobs";
+
+  navigate(target, { replace: true });
+}
+
 
   // Check incomplete profile
   if (!data.profileComplete || !data.state || !data.linkedin) {
@@ -47,7 +61,8 @@ export default function RecruiterDashboard() {
     });
 
     return () => unsubscribe();
-  }, [auth]);
+}, [auth, location.pathname, navigate]);
+
 
   if (loadingProfile) {
     return (

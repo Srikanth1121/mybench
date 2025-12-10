@@ -112,10 +112,16 @@ export default function CandidateTable({ candidates = [] }) {
 
     // STEP 3 — Save unlocked candidate record
     const unlockRef = doc(db, "users", uid, "unlockedCandidates", candidate.id);
-    await setDoc(unlockRef, {
-      unlockedAt: new Date(),
-      candidateId: candidate.id,
-    });
+
+  const expiresAt = new Date();
+expiresAt.setDate(expiresAt.getDate() + 30);
+
+await setDoc(unlockRef, {
+  unlockedAt: new Date(),
+  expiresAt: expiresAt,
+  candidateId: candidate.id,
+});
+
 
     // STEP 4 — Reveal in UI
     setRevealed((prev) => ({
@@ -172,7 +178,9 @@ export default function CandidateTable({ candidates = [] }) {
 
 <tbody>
   {candidates.map((c) => {
-    const isRevealed = revealed[c.id];
+   const alreadyUnlocked = c.isUnlocked === true;
+const isRevealed = alreadyUnlocked || revealed[c.id];
+
 
     return (
       <tr key={c.id}>

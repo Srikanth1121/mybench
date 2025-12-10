@@ -2,6 +2,8 @@
 import { getDocs, collection, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { parseBooleanQuery } from "./booleanParser";
+import { getAuth } from "firebase/auth";
+
 
 /**
  * MAIN SEARCH FUNCTION
@@ -9,6 +11,8 @@ import { parseBooleanQuery } from "./booleanParser";
 export async function runCandidateSearch(queryText, filters) {
   // Parse boolean query once
   const parsed = parseBooleanQuery(queryText);
+const auth = getAuth();
+const loggedInRecruiterId = auth.currentUser?.uid;
 
   // STEP 1 & 2: fetch candidates
   const benchCandidates = await fetchBenchCandidates(filters);
@@ -21,6 +25,53 @@ export async function runCandidateSearch(queryText, filters) {
 
   // Attach recruiter details
   allCandidates = await attachRecruiterInfo(allCandidates);
+  // ----------------------------------------------------
+// STEP 3 — Attach Unlocked Status (30-day validity)
+// ----------------------------------------------------
+const auth2 = getAuth();
+const uid = auth2.currentUser?.uid;
+
+let unlockedMap = {};
+if (uid) {
+  const unlockCol = collection(db, "users", uid, "unlockedCandidates");
+  const unlockSnap = await getDocs(unlockCol);
+
+  const now = new Date();
+
+  unlockSnap.forEach((d) => {
+    const data = d.data();
+    let expiresAt = data.expiresAt;
+
+    if (expiresAt?.toDate) expiresAt = expiresAt.toDate();
+    if (!expiresAt || expiresAt < now) return;
+
+    unlockedMap[data.candidateId] = true;
+  });
+}
+
+// Merge unlock status into each candidate
+allCandidates = allCandidates.map((c) => ({
+  ...c,
+  isUnlocked: unlockedMap[c.id] ? true : false,
+}));
+
+// ----------------------------------------------------
+// ⭐ DEBUG: SHOW EXACT RESULTS
+// ----------------------------------------------------
+console.log("Unlocked Map:", unlockedMap);
+console.log(
+  "Candidates After Merge:",
+  allCandidates.map((a) => ({
+    id: a.id,
+    isUnlocked: a.isUnlocked,
+  }))
+);
+// 🚫 Remove own bench candidates (do not show recruiter's own profiles)
+if (loggedInRecruiterId) {
+  allCandidates = allCandidates.filter(
+    (c) => c.recruiterId !== loggedInRecruiterId
+  );
+}
 
   // --- START: GLOBAL NOT post-filter (safe & idempotent) ---
   // Collect NOT terms from parser output (cover both parsed.not and groups.not)
